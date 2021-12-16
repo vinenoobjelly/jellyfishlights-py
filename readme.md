@@ -18,7 +18,7 @@ from jellyfishmain import JellyFishController, Light, LightString
 controllerIP = "192.168.0.245"
 
 #We set the printJSON parameter to true to see the JSON sent to and recieved from the controller
-jfc = JellyFishController("192.168.0.245", True)
+jfc = JellyFishController(controllerIP, True)
 jfc.connectAndGetData()
 jfc.turnOff()
 
