@@ -61,6 +61,7 @@ class JellyFishController:
         """Returns and stores all the patterns from the controller"""
         patternFiles = self.__getData("patternFileList")
         for patternFile in patternFiles:
+            if patternFile["name"] != "":
             self.patternFiles.append(PatternName(patternFile["name"], patternFile["folders"]))
         return self.patternFiles
 
