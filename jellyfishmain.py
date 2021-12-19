@@ -7,7 +7,6 @@ import websocket
 import time
 import json
 from runPattern import RunPatternClass, RunPattern
-from runPatternData import RunPatternData, RunData
 from getData import GetData
 from typing import List
 from dataclasses import dataclass
