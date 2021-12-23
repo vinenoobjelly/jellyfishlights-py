@@ -2,11 +2,11 @@
 #TODO: get rid of above once this is done
 
 from logging import fatal
-from typing import Dict, Sequence
+from typing import Dict
 import websocket
-import time
 import json
 from runPattern import RunPatternClass, RunPattern
+from runPatternData import RunData, RunPatternData
 from getData import GetData
 from typing import List
 from dataclasses import dataclass
@@ -18,10 +18,12 @@ class Light:
         self.green = green
         self.blue = blue
 
+#Do we NEED a wrapper for a List[Light]?
 class LightString:
-    """Represents a series of lights on an led strip"""
-    def __init__(self, lights: List[Light] = []):
-        self.lights = lights
+    """Represents a series of Lights on an led strip"""
+    lights: List[Light]
+    def __init__(self, lightz: List[Light] = None):
+        self.lights = [] if lightz is None else lightz
 
     def add(self, light: Light):
         self.lights.append(light)
@@ -35,6 +37,9 @@ class PatternName:
         return self.folder + "/" + self.name
 
 #TODO: adding and setting patterns, schedules, and zones
+#TODO: get current schedule
+#TODO: add a way to get the current pattern (runPattern)
+#TODO: add use of prebuilt pattern types
 class JellyFishController:
     zones: Dict = {}
     patternFiles: List[PatternName] = []
@@ -62,7 +67,7 @@ class JellyFishController:
         patternFiles = self.__getData("patternFileList")
         for patternFile in patternFiles:
             if patternFile["name"] != "":
-            self.patternFiles.append(PatternName(patternFile["name"], patternFile["folders"]))
+                self.patternFiles.append(PatternName(patternFile["name"], patternFile["folders"]))
         return self.patternFiles
 
     def getZones(self) -> Dict:
@@ -112,8 +117,7 @@ class JellyFishController:
             colorsPos.append(i)
             
         rd = RunData(speed=0, brightness=100, effect="No Effect", effectValue=0, rgbAdj=[100,100,100])
-        rpd = RunPatternData(colors=colors, colorPos=colorsPos, cursor=-1, type="Soffit", skip=1, numOfLeds=1,
-        spaceBetweenPixels=2, effectBetweenPixels="No Effect", direction="Left", soffitZone="Zone", runData=rd)
-        rpc = RunPatternClass(state=1, zoneName=list(self.zones.keys()) if not zones else zones, data= json.dumps(rpd.to_dict()))
+        rpd = RunPatternData(colors=colors, colorPos=colorsPos, runData=rd, type="Soffit")
+        rpc = RunPatternClass(state=3, zoneName=list(self.zones.keys()) if not zones else zones, data= json.dumps(rpd.to_dict()))
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
