@@ -1,14 +1,14 @@
 # https://medium.com/@joel.barmettler/how-to-upload-your-python-package-to-pypi-65edc5fe9c56
 #TODO: get rid of above once this is done
 
-from logging import fatal
-from typing import Dict
 import websocket
 import json
-from runPattern import RunPatternClass, RunPattern
-from runPatternData import RunData, RunPatternData
-from getData import GetData
+
+from typing import Dict
 from typing import List
+from jellyfishlightspy.runPattern import RunPatternClass, RunPattern
+from jellyfishlightspy.runPatternData import RunData, RunPatternData
+from jellyfishlightspy.getData import GetData
 from dataclasses import dataclass
 
 class Light:
@@ -34,7 +34,7 @@ class PatternName:
     folder: str
 
     def toFolderAndName(self):
-        return self.folder + "/" + self.name
+        return f'{self.folder}/{self.name}'
 
 #TODO: adding and setting patterns, schedules, and zones
 #TODO: get current schedule
@@ -53,13 +53,13 @@ class JellyFishController:
     
     def __send(self, message: str):
         if self.__printJSON:
-            print("Sending: " + message)
+            print(f"Sending: {message}")
         self.__ws.send(message)
 
     def __recv(self):
         message = self.__ws.recv()
         if self.__printJSON:
-            print("Recieved: " + message)
+            print(f"Recieved: {message}")
         return message
 
     def getPatterns(self) -> List[PatternName]:
@@ -84,40 +84,54 @@ class JellyFishController:
     #Attempts to connect to a controller at the givin address
     def connectAndGetData(self):
         try:
-            self.__ws.connect("ws://" + self.__address + ":9000")
+            self.__ws.connect(f"ws://{self.__address}:9000")
             self.getZones()
             self.getPatterns()
         except:
-            print("Could not connect to controller at " + self.__address)
+            raise BaseException("Could not connect to controller at " + self.__address)
         
 
     def playPattern(self, pattern: str, zones: List[str] = None):
-        rpc = RunPatternClass(state=1, zoneName=list(self.zones.keys()) if not zones else zones, file=pattern, data="")
+        rpc = RunPatternClass(
+            state=1,
+            zoneName=zones or list(self.zones.keys()),
+            file=pattern,
+            data="",
+        )
+
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
 
     def turnOnOff(self, turnOn: bool, zones: List[str] = None):
-        rpc = RunPatternClass(state=1 if turnOn else 0, zoneName=list(self.zones.keys()) if not zones else zones, data="")
+        rpc = RunPatternClass(
+            state=1 if turnOn else 0,
+            zoneName=zones or list(self.zones.keys()),
+            data="",
+        )
+
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
 
     def turnOn(self, zones: List[str] = None):
-        self.turnOnOff(True, list(self.zones.keys()) if not zones else zones)
+        self.turnOnOff(True, zones or list(self.zones.keys()))
 
     def turnOff(self, zones: List[str] = None):
-        self.turnOnOff(False, list(self.zones.keys()) if not zones else zones)
+        self.turnOnOff(False, zones or list(self.zones.keys()))
 
     def sendLightString(self, lightString: LightString, zones: List[str] = None):
         colors = [0,0,0]
         colorsPos = [-1]
         for i, light in enumerate(lightString.lights):
-            colors.append(light.red)
-            colors.append(light.green)
-            colors.append(light.blue)
+            colors.extend((light.red, light.green, light.blue))
             colorsPos.append(i)
-            
+
         rd = RunData(speed=0, brightness=100, effect="No Effect", effectValue=0, rgbAdj=[100,100,100])
         rpd = RunPatternData(colors=colors, colorPos=colorsPos, runData=rd, type="Soffit")
-        rpc = RunPatternClass(state=3, zoneName=list(self.zones.keys()) if not zones else zones, data= json.dumps(rpd.to_dict()))
+        rpc = RunPatternClass(
+            state=3,
+            zoneName=zones or list(self.zones.keys()),
+            data=json.dumps(rpd.to_dict()),
+        )
+
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
