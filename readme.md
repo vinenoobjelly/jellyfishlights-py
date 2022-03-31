@@ -1,6 +1,10 @@
 Python api wrapper for JellyFish Lights
 
-The hope is to make this a pip installable package
+~~The hope is to make this a pip installable package~~
+Now available through pypi/pip!
+
+To install:
+- pip install jellyfishlightpy
 
 **Current capabalilities**: 
 - Connects to a local JellyFish Lighting controller over websocket
