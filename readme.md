@@ -17,7 +17,7 @@ To install:
 
 **Example**:
 ```python
-from jellyfishmain import JellyFishController, Light, LightString
+from jellyfishlightspy import *
 
 controllerIP = "192.168.0.245"
 
