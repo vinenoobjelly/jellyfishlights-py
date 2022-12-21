@@ -6,9 +6,9 @@ import json
 
 from typing import Dict
 from typing import List
-from jellyfishlightspy.runPattern import RunPatternClass, RunPattern
-from jellyfishlightspy.runPatternData import RunData, RunPatternData
-from jellyfishlightspy.getData import GetData
+from jellyfishlightspy.runPattern import *
+from jellyfishlightspy.runPatternData import *
+from jellyfishlightspy.getData import *
 from dataclasses import dataclass
 
 class Light:
@@ -62,31 +62,42 @@ class JellyFishController:
             print(f"Recieved: {message}")
         return message
 
-    def getPatterns(self) -> List[PatternName]:
+    def getAndStorePatterns(self) -> List[PatternName]:
         """Returns and stores all the patterns from the controller"""
-        patternFiles = self.__getData("patternFileList")
+        patternFiles = self.__getData(["patternFileList"])
         for patternFile in patternFiles:
             if patternFile["name"] != "":
                 self.patternFiles.append(PatternName(patternFile["name"], patternFile["folders"]))
         return self.patternFiles
 
-    def getZones(self) -> Dict:
+    def getAndStoreZones(self) -> Dict:
         """Returns and stores zones, including their port numbers"""
-        zones = self.__getData("zones")
+        zones = self.__getData(["zones"])
         self.zones = zones
         return self.zones
 
-    def __getData(self, data) -> any:
-        gd = GetData(cmd='toCtlrGet', get=[[data]])
+
+    def getRunPattern(self, zone=None) -> RunPatternClass:
+        """Returns runPatternClass"""
+        if not zone:
+            zone = list(self.zones.keys())[0]
+        runPatterns = self.__getData(["runPattern", zone])
+        runPatternsClass = RunPatternClassFromDict(runPatterns)
+        return runPatternsClass
+
+    # def getRunPatternData(self, zones=None) -> 
+
+    def __getData(self, data: List[str]) -> any:
+        gd = GetData(cmd='toCtlrGet', get=[data])
         self.__send(json.dumps(gd.to_dict()))
-        return json.loads(self.__recv())[data]
+        return json.loads(self.__recv())[data[0]]
 
     #Attempts to connect to a controller at the givin address
     def connectAndGetData(self):
         try:
             self.__ws.connect(f"ws://{self.__address}:9000")
-            self.getZones()
-            self.getPatterns()
+            self.getAndStoreZones()
+            self.getAndStorePatterns()
         except:
             raise BaseException("Could not connect to controller at " + self.__address)
         

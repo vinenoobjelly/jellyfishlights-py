@@ -8,6 +8,8 @@
 #
 #     result = RunPatternfromdict(json.loads(json_string))
 
+import json
+from jellyfishlightspy.runPatternData import *
 from typing import List, Any, TypeVar, Callable, Type, cast
 
 
@@ -36,7 +38,7 @@ def to_class(c: Type[T], x: Any) -> dict:
 
 class RunPatternClass:
     file: str
-    data: str
+    data: RunPatternData
     id: str
     state: int
     zoneName: List[str]
@@ -52,11 +54,12 @@ class RunPatternClass:
     def from_dict(obj: Any) -> 'RunPatternClass':
         assert isinstance(obj, dict)
         file = from_str(obj.get("file"))
-        data = from_str(obj.get("data"))
+        data = RunPatternDatafromdict(json.loads(obj.get("data")))
+        # data = from_str(obj.get("data"))
         id = from_str(obj.get("id"))
         state = from_int(obj.get("state"))
         zoneName = from_list(from_str, obj.get("zoneName"))
-        return RunPatternClass(file, data, id, state, zoneName)
+        return RunPatternClass(state, zoneName, file, id, data)
 
     def to_dict(self) -> dict:
         result: dict = {'file': from_str(self.file)}
@@ -87,6 +90,9 @@ class RunPattern:
         result["runPattern"] = to_class(RunPatternClass, self.runPattern)
         return result
 
+
+def RunPatternClassFromDict(s: Any) -> RunPatternClass:
+    return RunPatternClass.from_dict(s)
 
 def RunPatternfromdict(s: Any) -> RunPattern:
     return RunPattern.from_dict(s)
