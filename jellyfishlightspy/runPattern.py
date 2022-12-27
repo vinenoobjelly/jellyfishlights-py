@@ -54,7 +54,10 @@ class RunPatternClass:
     def from_dict(obj: Any) -> 'RunPatternClass':
         assert isinstance(obj, dict)
         file = from_str(obj.get("file"))
-        data = RunPatternDatafromdict(json.loads(obj.get("data")))
+        try:
+            data = RunPatternDatafromdict(json.loads(obj.get("data")))
+        except json.JSONDecodeError:
+            data = None
         # data = from_str(obj.get("data"))
         id = from_str(obj.get("id"))
         state = from_int(obj.get("state"))
