@@ -77,13 +77,21 @@ class JellyFishController:
         return self.zones
 
 
-    def getRunPattern(self, zone=None) -> RunPatternClass:
+    def getRunPattern(self, zone: str=None) -> RunPatternClass:
         """Returns runPatternClass"""
         if not zone:
             zone = list(self.zones.keys())[0]
         runPatterns = self.__getData(["runPattern", zone])
         runPatternsClass = RunPatternClassFromDict(runPatterns)
         return runPatternsClass
+
+    def getRunPatterns(self, zones: List[str]=None) -> Dict[str, RunPatternClass]:
+        if not zones:
+            zones = list(self.zones.keys())
+        runPatterns = {}
+        for zone in zones:
+            runPatterns[zone] = self.getRunPattern(zone)
+        return runPatterns
 
     # def getRunPatternData(self, zones=None) -> 
 
