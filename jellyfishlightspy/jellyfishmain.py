@@ -6,6 +6,7 @@ import json
 
 from typing import Dict
 from typing import List
+from typing import Tuple
 from jellyfishlightspy.runPattern import *
 from jellyfishlightspy.runPatternData import *
 from jellyfishlightspy.getData import *
@@ -183,4 +184,16 @@ class JellyFishController:
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
         self.__recv() # need to read the response even if doing nothing with the result
+
+    def sendColor(self, rgb: Tuple[int,int,int], brightness: int = 100, zones: List[str] = None):
+        rd = RunData(speed=10, brightness=brightness, effect="No Effect", effectValue=0, rgbAdj=[100,100,100])
+        rpd = RunPatternData(colors=[*rgb], type="Color", skip=1, direction="Left", runData=rd)
+        rpc = RunPatternClass(
+            state=1,
+            zoneName=zones or list(self.zones.keys()),
+            data=json.dumps(rpd.to_dict()),
+        )
         
+        rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
+        self.__send(json.dumps(rp.to_dict()))
+        self.__recv() # need to read the response even if doing nothing with the result
