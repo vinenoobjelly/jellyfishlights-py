@@ -149,16 +149,19 @@ class JellyFishController:
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
         # need to read the response even if doing nothing with the result
-        # on/off can return multiple responses, so ensure to read them all
-        zones = set(zones)
-        ledPowerFound = False
-        while True:
-            data = json.loads(self.__recv())
-            if data.get('ledPower', not turnOn) == turnOn:
-                ledPowerFound = True
-                continue
-            if ledPowerFound and 'runPattern' in data and set(data['runPattern']['zoneName']) == zones:
-                break
+        if len(zones) == 1:
+            self.__recv()
+        else:
+            # on/off can return multiple responses, so ensure to read them all
+            zones = set(zones)
+            ledPowerFound = False
+            while True:
+                data = json.loads(self.__recv())
+                if data.get('ledPower', not turnOn) == turnOn:
+                    ledPowerFound = True
+                    continue
+                if ledPowerFound and 'runPattern' in data and set(data['runPattern']['zoneName']) == zones:
+                    break
 
     def turnOn(self, zones: List[str] = None):
         self.turnOnOff(True, zones or list(self.zones.keys()))
