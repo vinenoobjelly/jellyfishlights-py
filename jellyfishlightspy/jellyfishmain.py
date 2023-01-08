@@ -61,6 +61,10 @@ class JellyFishController:
         if self.__printJSON:
             print(f"Recieved: {message}")
         return message
+    
+    @property
+    def connected(self) -> bool:
+        return self.__ws.connected
 
     def getAndStorePatterns(self) -> List[PatternName]:
         """Returns and stores all the patterns from the controller"""
@@ -75,7 +79,6 @@ class JellyFishController:
         zones = self.__getData(["zones"])
         self.zones = zones
         return self.zones
-
 
     def getRunPattern(self, zone: str=None) -> RunPatternClass:
         """Returns runPatternClass"""
@@ -93,14 +96,26 @@ class JellyFishController:
             runPatterns[zone] = self.getRunPattern(zone)
         return runPatterns
 
-    # def getRunPatternData(self, zones=None) -> 
-
     def __getData(self, data: List[str]) -> any:
         gd = GetData(cmd='toCtlrGet', get=[data])
         self.__send(json.dumps(gd.to_dict()))
         return json.loads(self.__recv())[data[0]]
+    
+    #Attempts to connect to a controller at the given address
+    def connect(self):
+        try:
+            self.__ws.connect(f"ws://{self.__address}:9000")
+        except:
+            raise BaseException("Could not connect to controller at " + self.__address)
+        
+    # Disconnects the web socket connection
+    def disconnect(self):
+        try:
+            self.__ws.close()
+        except:
+            raise BaseException("Error encountered while disconnecting from controller at " + self.__address)
 
-    #Attempts to connect to a controller at the givin address
+    #Attempts to connect to a controller at the given address and retrieve data
     def connectAndGetData(self):
         try:
             self.__ws.connect(f"ws://{self.__address}:9000")
@@ -154,3 +169,4 @@ class JellyFishController:
 
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
+        
