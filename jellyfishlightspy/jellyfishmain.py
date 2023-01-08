@@ -154,13 +154,14 @@ class JellyFishController:
         else:
             # on/off can return multiple responses, so ensure to read them all
             zones = set(zones)
-            ledPowerFound = False
+            state = int(turnOn)
             while True:
                 data = json.loads(self.__recv())
-                if data.get('ledPower', not turnOn) == turnOn:
-                    ledPowerFound = True
-                    continue
-                if ledPowerFound and 'runPattern' in data and set(data['runPattern']['zoneName']) == zones:
+                if  (
+                    'runPattern' in data 
+                    and data['runPattern']['state'] ==  state 
+                    and set(data['runPattern']['zoneName']) == zones
+                ):
                     break
 
     def turnOn(self, zones: List[str] = None):
