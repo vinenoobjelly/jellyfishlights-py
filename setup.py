@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='jellyfishlights-py',
-    version='0.5.0',
+    version='0.4.0',
     license='',
     author="Jonathan Nielsen",
     author_email='jonathann@jellyfishlighting.com',
