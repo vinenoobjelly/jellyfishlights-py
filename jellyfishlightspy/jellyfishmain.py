@@ -119,11 +119,11 @@ class JellyFishController:
     #Attempts to connect to a controller at the given address and retrieve data
     def connectAndGetData(self):
         try:
-            self.__ws.connect(f"ws://{self.__address}:9000")
+            self.connect()
             self.getAndStoreZones()
             self.getAndStorePatterns()
-        except:
-            raise BaseException("Could not connect to controller at " + self.__address)
+        except Exception as e:
+            raise BaseException("Error connecting or getting data: ", e)
         
 
     def playPattern(self, pattern: str, zones: List[str] = None):
