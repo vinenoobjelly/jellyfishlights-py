@@ -6,6 +6,7 @@ import json
 
 from typing import Dict
 from typing import List
+from typing import Tuple
 from jellyfishlightspy.runPattern import *
 from jellyfishlightspy.runPatternData import *
 from jellyfishlightspy.getData import *
@@ -61,6 +62,10 @@ class JellyFishController:
         if self.__printJSON:
             print(f"Recieved: {message}")
         return message
+    
+    @property
+    def connected(self) -> bool:
+        return self.__ws.connected
 
     def getAndStorePatterns(self) -> List[PatternName]:
         """Returns and stores all the patterns from the controller"""
@@ -75,7 +80,6 @@ class JellyFishController:
         zones = self.__getData(["zones"])
         self.zones = zones
         return self.zones
-
 
     def getRunPattern(self, zone: str=None) -> RunPatternClass:
         """Returns runPatternClass"""
@@ -93,14 +97,26 @@ class JellyFishController:
             runPatterns[zone] = self.getRunPattern(zone)
         return runPatterns
 
-    # def getRunPatternData(self, zones=None) -> 
-
     def __getData(self, data: List[str]) -> any:
         gd = GetData(cmd='toCtlrGet', get=[data])
         self.__send(json.dumps(gd.to_dict()))
         return json.loads(self.__recv())[data[0]]
+    
+    #Attempts to connect to a controller at the given address
+    def connect(self):
+        try:
+            self.__ws.connect(f"ws://{self.__address}:9000")
+        except:
+            raise BaseException("Could not connect to controller at " + self.__address)
+        
+    # Disconnects the web socket connection
+    def disconnect(self):
+        try:
+            self.__ws.close()
+        except:
+            raise BaseException("Error encountered while disconnecting from controller at " + self.__address)
 
-    #Attempts to connect to a controller at the givin address
+    #Attempts to connect to a controller at the given address and retrieve data
     def connectAndGetData(self):
         try:
             self.__ws.connect(f"ws://{self.__address}:9000")
@@ -120,16 +136,30 @@ class JellyFishController:
 
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
+        self.__recv() # need to read the response even if doing nothing with the result
 
     def turnOnOff(self, turnOn: bool, zones: List[str] = None):
+        zones = zones or list(self.zones.keys())
         rpc = RunPatternClass(
             state=1 if turnOn else 0,
-            zoneName=zones or list(self.zones.keys()),
+            zoneName=zones,
             data="",
         )
 
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
+        # need to read the response even if doing nothing with the result
+        # on/off can return multiple responses, so ensure to read them all
+        zones = set(zones)
+        state = int(turnOn)
+        while True:
+            data = json.loads(self.__recv())
+            if  (
+                'runPattern' in data 
+                and data['runPattern']['state'] ==  state 
+                and set(data['runPattern']['zoneName']) == zones
+            ):
+                break
 
     def turnOn(self, zones: List[str] = None):
         self.turnOnOff(True, zones or list(self.zones.keys()))
@@ -154,3 +184,17 @@ class JellyFishController:
 
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
+        self.__recv() # need to read the response even if doing nothing with the result
+
+    def sendColor(self, rgb: Tuple[int,int,int], brightness: int = 100, zones: List[str] = None):
+        rd = RunData(speed=10, brightness=brightness, effect="No Effect", effectValue=0, rgbAdj=[100,100,100])
+        rpd = RunPatternData(colors=[*rgb], type="Color", skip=1, direction="Left", runData=rd)
+        rpc = RunPatternClass(
+            state=1,
+            zoneName=zones or list(self.zones.keys()),
+            data=json.dumps(rpd.to_dict()),
+        )
+        
+        rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
+        self.__send(json.dumps(rp.to_dict()))
+        self.__recv() # need to read the response even if doing nothing with the result
