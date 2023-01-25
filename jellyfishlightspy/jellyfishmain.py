@@ -113,6 +113,7 @@ class JellyFishController:
     def disconnect(self):
         try:
             self.__ws.close()
+            self.__ws = websocket.WebSocket()
         except:
             raise BaseException("Error encountered while disconnecting from controller at " + self.__address)
 
