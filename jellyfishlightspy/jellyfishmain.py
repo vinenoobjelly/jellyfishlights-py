@@ -80,7 +80,7 @@ class JellyFishController:
         #       This will still exist even with a timeout due to variable network latency
         try:
             while True:
-                self.__messageQueue.get(timeout=1)
+                self.__messageQueue.get(timeout=.1)
         except queue.Empty:
             pass
     
