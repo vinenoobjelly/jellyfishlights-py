@@ -3,10 +3,9 @@
 
 import websocket
 import json
-
-from typing import Dict
-from typing import List
-from typing import Tuple
+import queue
+from typing import Dict, List, Tuple
+from threading import Thread, Event
 from jellyfishlightspy.runPattern import *
 from jellyfishlightspy.runPatternData import *
 from jellyfishlightspy.getData import *
@@ -44,7 +43,10 @@ class PatternName:
 class JellyFishController:
     zones: Dict = {}
     patternFiles: List[PatternName] = []
-    __ws = websocket.WebSocket()
+    __ws: websocket.WebSocketApp = None
+    __wsThread: Thread = None
+    __messageQueue = queue.Queue()
+    __connected: Event = Event()
     __address: str
     __printJSON: bool
 
@@ -52,20 +54,41 @@ class JellyFishController:
         self.__address = address
         self.__printJSON = printJSON
     
+    def __ws_on_open(self, ws):
+        self.__connected.set()
+    
+    def __ws_on_close(self, ws, status, message):
+        self.__connected.clear()
+    
+    def __ws_on_message(self, ws, message):
+        if self.__printJSON:
+            print(f"Recieved: {message}")
+        self.__messageQueue.put(message)
+    
     def __send(self, message: str):
         if self.__printJSON:
             print(f"Sending: {message}")
         self.__ws.send(message)
-
+    
     def __recv(self):
-        message = self.__ws.recv()
-        if self.__printJSON:
-            print(f"Recieved: {message}")
-        return message
+        return self.__messageQueue.get()
+    
+    def __drain_queue(self):
+        # Wait for at least one message to appear in queue
+        self.__messageQueue.get()
+        # Then read the rest
+        # Note: there's an inherent race condition here that can't be avoided...
+        #       We may read from the queue faster than messages are received.
+        #       This will still exist even with a timeout due to variable network latency
+        try:
+            while True:
+                self.__messageQueue.get(timeout=1)
+        except queue.Empty:
+            pass
     
     @property
     def connected(self) -> bool:
-        return self.__ws.connected
+        return self.__connected.is_set()
 
     def getAndStorePatterns(self) -> List[PatternName]:
         """Returns and stores all the patterns from the controller"""
@@ -105,14 +128,23 @@ class JellyFishController:
     #Attempts to connect to a controller at the given address
     def connect(self):
         try:
-            self.__ws.connect(f"ws://{self.__address}:9000")
+            self.__ws = websocket.WebSocketApp(
+                f"ws://{self.__address}:9000",
+                on_open = self.__ws_on_open,
+                on_close = self.__ws_on_close,
+                on_message = self.__ws_on_message
+            )
+            self.__wsThread = Thread(target=lambda: self.__ws.run_forever())
+            self.__wsThread.start()
+            self.__connected.wait()
         except:
             raise BaseException("Could not connect to controller at " + self.__address)
-        
+    
     # Disconnects the web socket connection
     def disconnect(self):
         try:
             self.__ws.close()
+            self.__wsThread.join()
         except:
             raise BaseException("Error encountered while disconnecting from controller at " + self.__address)
 
@@ -125,7 +157,6 @@ class JellyFishController:
         except Exception as e:
             raise BaseException("Error connecting or getting data: ", e)
         
-
     def playPattern(self, pattern: str, zones: List[str] = None):
         rpc = RunPatternClass(
             state=1,
@@ -136,7 +167,7 @@ class JellyFishController:
 
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
-        self.__recv() # need to read the response even if doing nothing with the result
+        self.__drain_queue()
 
     def turnOnOff(self, turnOn: bool, zones: List[str] = None):
         zones = zones or list(self.zones.keys())
@@ -148,18 +179,7 @@ class JellyFishController:
 
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
-        # need to read the response even if doing nothing with the result
-        # on/off can return multiple responses, so ensure to read them all
-        zones = set(zones)
-        state = int(turnOn)
-        while True:
-            data = json.loads(self.__recv())
-            if  (
-                'runPattern' in data 
-                and data['runPattern']['state'] ==  state 
-                and set(data['runPattern']['zoneName']) == zones
-            ):
-                break
+        self.__drain_queue()
 
     def turnOn(self, zones: List[str] = None):
         self.turnOnOff(True, zones or list(self.zones.keys()))
@@ -184,7 +204,7 @@ class JellyFishController:
 
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
-        self.__recv() # need to read the response even if doing nothing with the result
+        self.__drain_queue()
 
     def sendColor(self, rgb: Tuple[int,int,int], brightness: int = 100, zones: List[str] = None):
         rd = RunData(speed=10, brightness=brightness, effect="No Effect", effectValue=0, rgbAdj=[100,100,100])
@@ -197,4 +217,4 @@ class JellyFishController:
         
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
-        self.__recv() # need to read the response even if doing nothing with the result
+        self.__drain_queue()
