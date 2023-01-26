@@ -43,8 +43,11 @@ jfc.sendLightString(lights, ["Zone"])
 
 # Play a pre-saved pattern on all zones
 jfc.playPattern('Special Effects/Red Waves')
-rpd = jfc.getRunPattern("Zone")
-print(f"Zones is {'on' if rpd.state else 'off'} (pattern: '{rpd.file}')")
+
+# Retrieve current run pattern data for all zones
+rpd = jfc.getRunPatterns()
+for zone in rpd:
+    print(f"Zone '{zone}' is {'on' if rpd[zone].state else 'off'} (pattern: '{rpd[zone].file}')")
 
 # Set all zones to a solid color (white @ 100% brightness in this case)
 jfc.sendColor((255, 255, 255), 100)
