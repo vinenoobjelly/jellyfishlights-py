@@ -3,7 +3,6 @@
 
 import websocket
 import json
-import queue
 from typing import Dict, List, Tuple
 from threading import Thread, Event
 from jellyfishlightspy.runPattern import *
@@ -40,17 +39,39 @@ class PatternName:
 #TODO: get current schedule
 #TODO: add a way to get the current pattern (runPattern)
 #TODO: add use of prebuilt pattern types
+
+ZONE_DATA = "zones"
+PATTERN_LIST_DATA = "patternFileList"
+RUN_PATTERN_DATA = "runPattern"
+
 class JellyFishController:
 
     def __init__(self, address: str, printJSON: bool = False):
         self.zones: Dict = {}
         self.patternFiles: List[PatternName] = []
+        self.runPatterns: Dict = {}
         self.__ws: websocket.WebSocketApp = None
         self.__wsThread: Thread = None
-        self.__messageQueue = queue.Queue()
         self.__connected: Event = Event()
         self.__address = address
         self.__printJSON = printJSON
+        self.__events = {
+            ZONE_DATA: Event(),
+            PATTERN_LIST_DATA: Event(),
+            RUN_PATTERN_DATA: {}
+        }
+    
+    def __getRunPatternEvent(self, zone: str) -> Event:
+        if zone not in self.__events[RUN_PATTERN_DATA]:
+            self.__events[RUN_PATTERN_DATA][zone] = Event()
+        return self.__events[RUN_PATTERN_DATA][zone]
+    
+    def __triggerEvent(self, dataKey, zone = None):
+        event = self.__events[dataKey]
+        if zone is not None:
+            event = event[zone]
+        event.set()
+        event.clear()
     
     def __ws_on_open(self, ws):
         self.__connected.set()
@@ -61,67 +82,53 @@ class JellyFishController:
     def __ws_on_message(self, ws, message):
         if self.__printJSON:
             print(f"Recieved: {message}")
-        self.__messageQueue.put(message)
+        data = json.loads(message)
+        if ZONE_DATA in data:
+            self.zones = data[ZONE_DATA]
+            self.__triggerEvent(ZONE_DATA)
+        elif PATTERN_LIST_DATA in data:
+            data = data[PATTERN_LIST_DATA]
+            self.patternFiles = []
+            for patternFile in data:
+                if patternFile["name"] != "":
+                    self.patternFiles.append(PatternName(patternFile["name"], patternFile["folders"]))
+            self.__triggerEvent(PATTERN_LIST_DATA)
+        elif RUN_PATTERN_DATA in data:
+            data = data[RUN_PATTERN_DATA]
+            zone = data["zoneName"][0]
+            self.runPatterns[zone] = RunPatternClassFromDict(data)
+            self.__triggerEvent(RUN_PATTERN_DATA, zone)
     
     def __send(self, message: str):
         if self.__printJSON:
             print(f"Sending: {message}")
         self.__ws.send(message)
-    
-    def __recv(self):
-        return self.__messageQueue.get()
-    
-    def __drain_queue(self):
-        # Wait for at least one message to appear in queue
-        self.__messageQueue.get()
-        # Then read the rest
-        # Note: there's an inherent race condition here that can't be avoided...
-        #       We may read from the queue faster than messages are received.
-        #       This will still exist even with a timeout due to variable network latency
-        try:
-            while True:
-                self.__messageQueue.get(timeout=.1)
-        except queue.Empty:
-            pass
+
+    def __requestData(self, data: List[str]):
+        gd = GetData(cmd='toCtlrGet', get=[data])
+        self.__send(json.dumps(gd.to_dict()))
     
     @property
     def connected(self) -> bool:
         return self.__connected.is_set()
 
-    def getAndStorePatterns(self) -> List[PatternName]:
+    def getPatternList(self, timeout = None) -> List[PatternName]:
         """Returns and stores all the patterns from the controller"""
-        patternFiles = self.__getData(["patternFileList"])
-        for patternFile in patternFiles:
-            if patternFile["name"] != "":
-                self.patternFiles.append(PatternName(patternFile["name"], patternFile["folders"]))
+        self.__requestData([PATTERN_LIST_DATA])
+        self.__events[PATTERN_LIST_DATA].wait(timeout)
         return self.patternFiles
 
-    def getAndStoreZones(self) -> Dict:
+    def getZones(self, timeout = None) -> Dict:
         """Returns and stores zones, including their port numbers"""
-        zones = self.__getData(["zones"])
-        self.zones = zones
+        self.__requestData([ZONE_DATA])
+        self.__events[ZONE_DATA].wait(timeout)
         return self.zones
 
-    def getRunPattern(self, zone: str=None) -> RunPatternClass:
+    def getRunPattern(self, zone, timeout = None) -> RunPatternClass:
         """Returns runPatternClass"""
-        if not zone:
-            zone = list(self.zones.keys())[0]
-        runPatterns = self.__getData(["runPattern", zone])
-        runPatternsClass = RunPatternClassFromDict(runPatterns)
-        return runPatternsClass
-
-    def getRunPatterns(self, zones: List[str]=None) -> Dict[str, RunPatternClass]:
-        if not zones:
-            zones = list(self.zones.keys())
-        runPatterns = {}
-        for zone in zones:
-            runPatterns[zone] = self.getRunPattern(zone)
-        return runPatterns
-
-    def __getData(self, data: List[str]) -> any:
-        gd = GetData(cmd='toCtlrGet', get=[data])
-        self.__send(json.dumps(gd.to_dict()))
-        return json.loads(self.__recv())[data[0]]
+        self.__requestData([RUN_PATTERN_DATA, zone])
+        self.__getRunPatternEvent(zone).wait(timeout)
+        return self.runPatterns[zone]
     
     #Attempts to connect to a controller at the given address
     def connect(self):
@@ -132,7 +139,7 @@ class JellyFishController:
                 on_close = self.__ws_on_close,
                 on_message = self.__ws_on_message
             )
-            self.__wsThread = Thread(target=lambda: self.__ws.run_forever())
+            self.__wsThread = Thread(target=lambda: self.__ws.run_forever(), daemon=True)
             self.__wsThread.start()
             self.__connected.wait()
         except:
@@ -150,8 +157,8 @@ class JellyFishController:
     def connectAndGetData(self):
         try:
             self.connect()
-            self.getAndStoreZones()
-            self.getAndStorePatterns()
+            self.getZones()
+            self.getPatternList()
         except Exception as e:
             raise BaseException("Error connecting or getting data: ", e)
         
@@ -165,7 +172,6 @@ class JellyFishController:
 
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
-        self.__drain_queue()
 
     def turnOnOff(self, turnOn: bool, zones: List[str] = None):
         zones = zones or list(self.zones.keys())
@@ -177,7 +183,6 @@ class JellyFishController:
 
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
-        self.__drain_queue()
 
     def turnOn(self, zones: List[str] = None):
         self.turnOnOff(True, zones or list(self.zones.keys()))
@@ -202,7 +207,6 @@ class JellyFishController:
 
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
-        self.__drain_queue()
 
     def sendColor(self, rgb: Tuple[int,int,int], brightness: int = 100, zones: List[str] = None):
         rd = RunData(speed=10, brightness=brightness, effect="No Effect", effectValue=0, rgbAdj=[100,100,100])
@@ -215,4 +219,3 @@ class JellyFishController:
         
         rp = RunPattern(cmd="toCtlrSet", runPattern=rpc)
         self.__send(json.dumps(rp.to_dict()))
-        self.__drain_queue()
