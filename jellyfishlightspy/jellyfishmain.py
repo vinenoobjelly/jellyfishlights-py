@@ -95,9 +95,10 @@ class JellyFishController:
             self.__triggerEvent(PATTERN_LIST_DATA)
         elif RUN_PATTERN_DATA in data:
             data = data[RUN_PATTERN_DATA]
-            zone = data["zoneName"][0]
-            self.runPatterns[zone] = RunPatternClassFromDict(data)
-            self.__triggerEvent(RUN_PATTERN_DATA, zone)
+            if len(data["zoneName"]) == 1:
+                zone = data["zoneName"][0]
+                self.runPatterns[zone] = RunPatternClassFromDict(data)
+                self.__triggerEvent(RUN_PATTERN_DATA, zone)
     
     def __send(self, message: str):
         if self.__printJSON:
@@ -124,11 +125,13 @@ class JellyFishController:
         self.__events[ZONE_DATA].wait(timeout)
         return self.zones
 
-    def getRunPattern(self, zone, timeout = None) -> RunPatternClass:
-        """Returns runPatternClass"""
-        self.__requestData([RUN_PATTERN_DATA, zone])
-        self.__getRunPatternEvent(zone).wait(timeout)
-        return self.runPatterns[zone]
+    def getRunPatterns(self, zones: List[str] = None, timeout = None) -> Dict:
+        """Returns dict of zones (key) and RunPattern objects"""
+        zones = zones or list(self.zones.keys())
+        for zone in zones:
+            self.__requestData([RUN_PATTERN_DATA, zone])
+            self.__getRunPatternEvent(zone).wait(timeout)
+        return self.runPatterns
     
     #Attempts to connect to a controller at the given address
     def connect(self):
