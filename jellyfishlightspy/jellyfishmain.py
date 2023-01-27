@@ -4,7 +4,7 @@
 import websocket
 import json
 from typing import Dict, List, Tuple
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 from jellyfishlightspy.runPattern import *
 from jellyfishlightspy.runPatternData import *
 from jellyfishlightspy.getData import *
@@ -60,6 +60,11 @@ class JellyFishController:
             PATTERN_LIST_DATA: Event(),
             RUN_PATTERN_DATA: {}
         }
+        self.__locks = {
+            ZONE_DATA: Lock(),
+            PATTERN_LIST_DATA: Lock(),
+            RUN_PATTERN_DATA: Lock()
+        }
     
     def __getRunPatternEvent(self, zone: str) -> Event:
         if zone not in self.__events[RUN_PATTERN_DATA]:
@@ -84,20 +89,23 @@ class JellyFishController:
             print(f"Recieved: {message}")
         data = json.loads(message)
         if ZONE_DATA in data:
-            self.zones = data[ZONE_DATA]
+            with self.__locks[ZONE_DATA]:
+                self.zones = data[ZONE_DATA]
             self.__triggerEvent(ZONE_DATA)
         elif PATTERN_LIST_DATA in data:
             data = data[PATTERN_LIST_DATA]
-            self.patternFiles = []
-            for patternFile in data:
-                if patternFile["name"] != "":
-                    self.patternFiles.append(PatternName(patternFile["name"], patternFile["folders"]))
+            with self.__locks[PATTERN_LIST_DATA]:
+                self.patternFiles = []
+                for patternFile in data:
+                    if patternFile["name"] != "":
+                        self.patternFiles.append(PatternName(patternFile["name"], patternFile["folders"]))
             self.__triggerEvent(PATTERN_LIST_DATA)
         elif RUN_PATTERN_DATA in data:
             data = data[RUN_PATTERN_DATA]
             if len(data["zoneName"]) == 1:
                 zone = data["zoneName"][0]
-                self.runPatterns[zone] = RunPatternClassFromDict(data)
+                with self.__locks[RUN_PATTERN_DATA]:
+                    self.runPatterns[zone] = RunPatternClassFromDict(data)
                 self.__triggerEvent(RUN_PATTERN_DATA, zone)
     
     def __send(self, message: str):
@@ -117,13 +125,15 @@ class JellyFishController:
         """Returns and stores all the patterns from the controller"""
         self.__requestData([PATTERN_LIST_DATA])
         self.__events[PATTERN_LIST_DATA].wait(timeout)
-        return self.patternFiles
+        with self.__locks[PATTERN_LIST_DATA]:
+            return self.patternFiles
 
     def getZones(self, timeout = None) -> Dict:
         """Returns and stores zones, including their port numbers"""
         self.__requestData([ZONE_DATA])
         self.__events[ZONE_DATA].wait(timeout)
-        return self.zones
+        with self.__locks[ZONE_DATA]:
+            return self.zones
 
     def getRunPatterns(self, zones: List[str] = None, timeout = None) -> Dict:
         """Returns dict of zones (key) and RunPattern objects"""
@@ -131,7 +141,8 @@ class JellyFishController:
         for zone in zones:
             self.__requestData([RUN_PATTERN_DATA, zone])
             self.__getRunPatternEvent(zone).wait(timeout)
-        return self.runPatterns
+        with self.__locks[RUN_PATTERN_DATA]:
+            return self.runPatterns
     
     #Attempts to connect to a controller at the given address
     def connect(self):
