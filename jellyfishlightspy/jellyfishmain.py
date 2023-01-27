@@ -142,7 +142,7 @@ class JellyFishController:
         with self.__locks[RUN_PATTERN_DATA]:
             return self.runPatterns[zone]
 
-    def getRunPatterns(self, zones: List[str] = None, timeout = None) -> Dict[str, RunnPatternClass]:
+    def getRunPatterns(self, zones: List[str] = None, timeout = None) -> Dict[str, RunPatternClass]:
         """Returns and stores the state of specified zones"""
         zones = zones or list(self.zones.keys())
         for zone in zones:
