@@ -1,8 +1,9 @@
 from setuptools import setup, find_packages
+# https://realpython.com/pypi-publish-python-package/
 
 setup(
     name='jellyfishlights-py',
-    version='0.5.0',
+    version='0.6.0',
     license='',
     author="Jonathan Nielsen",
     author_email='jonathann@jellyfishlighting.com',
