@@ -8,12 +8,14 @@ To install:
 
 **Current capabalilities**: 
 - Connects to a local JellyFish Lighting controller over websocket
-- Retrieve and store the following data:
+- Retrieves and stores the following data:
     - Zones
     - Pattern Files
-- Turn on and off controller lights
-- Play a pattern
-- Set any lights you want
+    - Active Run Pattern for a Zone
+- Turns on and off controller lights
+- Plays a pattern
+- Sets lights to a solid color with brightness control
+- Set any individual lights you want
 
 **Example**:
 ```python
@@ -21,22 +23,32 @@ from jellyfishlightspy import *
 
 controllerIP = "192.168.0.245"
 
-#We set the printJSON parameter to true to see the JSON sent to and recieved from the controller
+# We set the printJSON parameter to true to see the JSON sent to and recieved from the controller
 jfc = JellyFishController(controllerIP, True)
 jfc.connectAndGetData()
 jfc.turnOff()
 
 lights = LightString()
-#add red light
+# Add red light
 lights.add(Light(255, 0, 0))
-#add green light
+# Add green light
 lights.add(Light(0, 255, 0))
-#add blue light
+# Add blue light
 lights.add(Light(0, 0, 255))
 
-#Currently all commands that could turn on the lights themselves
-#  have an optional zones parameter. If not filled the api wrapper
-#  will fill it with all the zones it got from the controller
+# Currently all commands that could turn on the lights themselves
+# have an optional zones parameter. If not filled the api wrapper
+# will fill it with all the zones it got from the controller
 jfc.sendLightString(lights, ["Zone"])
 
+# Play a pre-saved pattern on all zones
+jfc.playPattern('Special Effects/Red Waves')
+
+# Retrieve current run pattern data for all zones
+rpd = jfc.getRunPatterns()
+for zone in rpd:
+    print(f"Zone '{zone}' is {'on' if rpd[zone].state else 'off'} (pattern: '{rpd[zone].file}')")
+
+# Set all zones to a solid color (white @ 100% brightness in this case)
+jfc.sendColor((255, 255, 255), 100)
 ```
