@@ -15,6 +15,7 @@ from .helpers import JellyFishLightsException, wrap_exception, valid_rgb, valid_
 #TODO: adding and setting patterns, schedules, and zones
 #TODO: get current schedule
 
+websocket.enableTrace(True, level="ERROR")
 
 class JellyFishController:
     """Manages connectiity and data transfer to/from a JellyFish Lighting Controller"""
