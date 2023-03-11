@@ -1,6 +1,6 @@
 import logging
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__package__)
 LOGGER.addHandler(logging.NullHandler())
 
 ZONE_DATA = "zones"
