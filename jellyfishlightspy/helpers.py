@@ -22,7 +22,7 @@ def wrap_exception(msg: str):
         def applicator(*args, **kwargs):
             try:
                 return f(*args, **kwargs)
-            except e:
+            except Exception as e:
                 raise JellyFishLightsException(msg) from e
         return applicator
     return decorate

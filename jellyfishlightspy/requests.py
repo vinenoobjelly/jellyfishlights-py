@@ -10,6 +10,6 @@ class GetDataRequest:
 
 class RunPatternRequest:
 
-    def __init__(self, cmd: str, state: int, zoneName: List[str], file: str = "", id: str = "", data: Optional[RunPatternData] = None):
+    def __init__(self, state: int, zoneName: List[str], file: str = "", id: str = "", data: Optional[RunPatternData] = None):
         self.cmd = 'toCtlrSet'
-        self.runPattern = StateData(state=state, zoneName=zoneName, file=file, id=id, data=data)
+        self.runPattern = vars(StateData(state=state, zoneName=zoneName, file=file, id=id, data=data))

@@ -22,7 +22,7 @@ class JellyFishController:
     def __init__(self, address: str):
         #TODO: must this be a dict?
         self.zones: Dict = {}
-        self.pattern_files: List[PatternName] = []
+        self.patterns: List[PatternName] = []
         self.zone_data: Dict[str, StateData] = {}
         self.__ws: websocket.WebSocketApp
         self.__ws_thread: Thread
@@ -38,27 +38,29 @@ class JellyFishController:
             PATTERN_LIST_DATA: Lock(),
             RUN_PATTERN_DATA: Lock()
         }
-    
+
     def __get_run_pattern_event(self, zone: str) -> Event:
         """Returns the Event object that triggers new RunPattern data for a zone"""
         if zone not in self.__events[RUN_PATTERN_DATA]:
             self.__events[RUN_PATTERN_DATA][zone] = Event()
         return self.__events[RUN_PATTERN_DATA][zone]
-    
+
     def __trigger_event(self, dataKey, zone = None):
         """Triggers an Event to notify the main thread when new RunPattern data is available for the zone"""
         event = self.__events[dataKey] if zone is None else self.__get_run_pattern_event(zone)
         event.set()
         event.clear()
-    
+
     def __ws_on_open(self, ws):
         """Callback method that is envoked when the web socket connection is opened"""
+        LOGGER.debug(f"Connected to the JellyFish Lighting controller at {self.__address}")
         self.__connected.set()
-    
+
     def __ws_on_close(self, ws, status, message):
         """Callback method that is envoked when the web socket connection is closed"""
+        LOGGER.debug(f"Disconnected from the JellyFish Lighting controller at {self.__address}")
         self.__connected.clear()
-    
+
     @wrap_exception("Error encountered while processing websocket data")
     def __ws_on_message(self, ws, message):
         """Callback method that is envoked when data is received over the web socket connection"""
@@ -72,10 +74,10 @@ class JellyFishController:
         elif PATTERN_LIST_DATA in data:
             data = data[PATTERN_LIST_DATA]
             with self.__locks[PATTERN_LIST_DATA]:
-                self.pattern_files = []
+                self.patterns = []
                 for p in data:
                     if p["name"] != "":
-                        self.pattern_files.append(PatternName(p["folders"], p["name"]))
+                        self.patterns.append(PatternName(p["folders"], p["name"]))
             self.__trigger_event(PATTERN_LIST_DATA)
         elif RUN_PATTERN_DATA in data:
             data = data[RUN_PATTERN_DATA]
@@ -84,11 +86,12 @@ class JellyFishController:
                 with self.__locks[RUN_PATTERN_DATA]:
                     self.zone_data[zone] = StateData(**data)
                 self.__trigger_event(RUN_PATTERN_DATA, zone)
-    
+
     def __send(self, data: Any):
         """Sends data to the controller over the web socket connection"""
-        LOGGER.debug(f"Sending: {message}")
-        self.__ws.send(json.dumps(vars(data)))
+        msg = json.dumps(vars(data))
+        LOGGER.debug(f"Sending: {msg}")
+        self.__ws.send(msg)
 
     @property
     def connected(self) -> bool:
@@ -96,12 +99,12 @@ class JellyFishController:
         return self.__connected.is_set()
 
     @wrap_exception("Error encountered while retrieving pattern list")
-    def get_pattern_list(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> List[PatternName]:
+    def get_patterns(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> List[PatternName]:
         """Returns and stores the list of pre-set patterns from the controller"""
         self.__send(GetDataRequest([PATTERN_LIST_DATA]))
         self.__events[PATTERN_LIST_DATA].wait(timeout)
         with self.__locks[PATTERN_LIST_DATA]:
-            return self.patternFiles
+            return self.patterns
 
     @wrap_exception("Error encountered while retrieving zone list")
     def get_zones(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict:
@@ -117,7 +120,7 @@ class JellyFishController:
         self.__send(GetDataRequest([RUN_PATTERN_DATA, zone]))
         self.__get_run_pattern_event(zone).wait(timeout)
         with self.__locks[RUN_PATTERN_DATA]:
-            return self.run_patterns[zone]
+            return self.zone_data[zone]
 
     @wrap_exception("Error encountered while retrieving zone run patterns")
     def get_zone_states(self, zones: List[str] = None, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, StateData]:
@@ -128,7 +131,7 @@ class JellyFishController:
             self.__get_run_pattern_event(zone).wait(timeout)
         with self.__locks[RUN_PATTERN_DATA]:
             return self.zone_data
-    
+
     def connect(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> None:
         """Establishes a connection to the JellyFish Lighting controller at the given address and begins listening for messages"""
         try:
@@ -140,13 +143,14 @@ class JellyFishController:
             )
             self.__ws_thread = Thread(target=lambda: self.__ws.run_forever(), daemon=True)
             self.__ws_thread.start()
+            #TODO: Test timeouts
             if not self.__connected.wait(timeout=timeout):
                 raise JellyFishLightsException(f"Connection to controller at {self.__address} timed out")
         except JellyFishLightsException:
             raise
-        except e:
+        except Exception as e:
             raise JellyFishLightsException(f"Could not connect to controller at {self.__address}") from e
-    
+
     # Disconnects the web socket connection
     def disconnect(self, timeout: Optional[float] = DEFAULT_TIMEOUT):
         """Disconnects from the JellyFish Lighting controller"""
@@ -157,14 +161,14 @@ class JellyFishController:
                 raise JellyFishLightsException(f"Attempt to disconnect from controller at {self.__address} timed out")
         except JellyFishLightsException:
             raise
-        except e:
+        except Exception as e:
             raise JellyFishLightsException(f"Error encountered while disconnecting from controller at {self.__address}") from e
 
     def connect_and_get_data(self):
         """Connects to the JellyFish Lighting controller at the given address and retrieves zone and pattern data"""
         self.connect()
-        self.getZones()
-        self.getPatternList()
+        self.get_zones()
+        self.get_patterns()
 
     def __turn_on_off(self, turnOn: bool, zones: List[str] = None):
         """Convenience function that turns zones on or off"""
@@ -181,7 +185,7 @@ class JellyFishController:
     @wrap_exception("Error encountered while turning off zone(s)")
     def turn_off(self, zones: List[str] = None):
         """Turns off the provided zone(s) (or all zones if not provided)"""
-        self.turn_on_off(False, zones or list(self.zones.keys()))
+        self.__turn_on_off(False, zones or list(self.zones.keys()))
 
     @wrap_exception("Error encountered while applying light string to zone(s)")
     def apply_light_string(self, light_string: List[Tuple[int, int, int]], zones: List[str] = None):
@@ -196,7 +200,7 @@ class JellyFishController:
 
         rd = RunData(speed=0, brightness=100, effect="No Effect", effect_value=0, rgb_adj=[100,100,100])
         rpd = RunPatternData(colors=colors, color_pos=colors_pos, run_data=rd, type="Soffit")
-        
+
         req = RunPatternRequest(
             state=3,
             zone_name=zones or list(self.zones.keys()),
@@ -211,14 +215,14 @@ class JellyFishController:
         assert valid_brightness(brightness)
         rd = RunData(speed=10, brightness=brightness, effect="No Effect", effect_value=0, rgb_adj=[100,100,100])
         rpd = RunPatternData(colors=[*rgb], type="Color", skip=1, direction="Left", run_data=rd)
-        
+
         req = RunPatternRequest(
             state=1,
             zone_name=zones or list(self.zones.keys()),
             data=rpd
         )
         self.__send(req)
-    
+
     @wrap_exception("Error encountered while applying pattern to zone(s)")
     def apply_pattern(self, pattern: str, zones: List[str] = None):
         """Activates a predefined pattern on the provided zone(s)"""
