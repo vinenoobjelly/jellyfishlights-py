@@ -1,1 +1,2 @@
-from jellyfishlightspy.jellyfishmain import *
+from .controller import JellyFishController
+from .helpers import JellyFishLightsException
