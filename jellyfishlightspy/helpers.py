@@ -4,10 +4,10 @@ class JellyFishLightsException(Exception):
     pass
 
 def valid_intensity(intensity: int) -> bool:
-    return 0 <= intensity <= 255
+    return intensity is not None and type(intensity) == int and 0 <= intensity <= 255
 
 def valid_rgb(rgb: Tuple[int, int, int]) -> bool:
-    if len(rgb) != 3:
+    if rgb is None or type(rgb) is not tuple or len(rgb) != 3:
         return False
     for intensity in rgb:
         if not valid_intensity(intensity):
@@ -15,7 +15,7 @@ def valid_rgb(rgb: Tuple[int, int, int]) -> bool:
     return True
 
 def valid_brightness(brightness: int) -> bool:
-    return 0 <= brightness <= 100
+    return brightness is not None and type(brightness) == int and 0 <= brightness <= 100
 
 def wrap_exception(msg: str):
     def decorate(f):
