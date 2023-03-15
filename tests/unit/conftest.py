@@ -2,7 +2,7 @@ import pytest
 import json
 from typing import List
 from jellyfishlightspy.helpers import to_json, from_json
-from jellyfishlightspy.model import RunData, RunPatternData, StateData, PatternName, ZoneConfiguration, PortMap
+from jellyfishlightspy.model import RunData, PatternData, StateData, Pattern, ZoneData, PortMapping
 from jellyfishlightspy.requests import GetRequest, SetRequest
 from tests.helpers import Helpers
 
@@ -19,8 +19,8 @@ def rd_json() -> str:
     return '{"speed": 20, "brightness": 100, "effect": "test-effect", "effectValue": 1, "rgbAdj": [2, 3, 4]}'
 
 @pytest.fixture
-def rpd_obj(rd_obj) -> RunPatternData:
-    return RunPatternData(colors = [0,1,2,3,4,5], type = "test-type", runData = rd_obj, direction = "test-direction", spaceBetweenPixels = 5, numOfLeds = 6, skip = 7, effectBetweenPixels = "test-effect-between-pixels", colorPos = [8, 9, 10], cursor = 11)
+def rpd_obj(rd_obj) -> PatternData:
+    return PatternData(colors = [0,1,2,3,4,5], type = "test-type", runData = rd_obj, direction = "test-direction", spaceBetweenPixels = 5, numOfLeds = 6, skip = 7, effectBetweenPixels = "test-effect-between-pixels", colorPos = [8, 9, 10], cursor = 11)
 
 @pytest.fixture
 def rpd_json(rd_json) -> str:
@@ -36,13 +36,13 @@ def sd_json(rpd_json) -> str:
     return '{"state": 1, "zoneName": ["test-zone-1", "test-zone-2"], "file": "test-file", "id": "test-id", "data": "' + escaped + '"}'
 
 @pytest.fixture
-def pattern_list() -> List[PatternName]:
+def pattern_list() -> List[Pattern]:
     return [
-        PatternName("test-folder-1", "", False),
-        PatternName("test-folder-1", "test-name-1", True),
-        PatternName("test-folder-2", "", False),
-        PatternName("test-folder-2", "test-name-1", True),
-        PatternName("test-folder-2", "test-name-2", True),
+        Pattern("test-folder-1", "", False),
+        Pattern("test-folder-1", "test-name-1", True),
+        Pattern("test-folder-2", "", False),
+        Pattern("test-folder-2", "test-name-1", True),
+        Pattern("test-folder-2", "test-name-2", True),
     ]
 
 @pytest.fixture
@@ -51,7 +51,7 @@ def pattern_json() -> str:
 
 @pytest.fixture
 def gd_req_obj() -> GetRequest:
-    return GetRequest(["zones"])
+    return GetRequest("zones")
 
 @pytest.fixture
 def gd_req_json() -> str:
@@ -67,8 +67,8 @@ def rp_req_json(rpd_json) -> str:
     return '{"cmd": "toCtlrSet", "runPattern": {"state": 1, "zoneName": ["test-zone-1", "test-zone-2"], "file": "test-folder/test-name", "id": "test-id", "data": "' + escaped + '"}}'
 
 @pytest.fixture
-def zc_obj() -> ZoneConfiguration:
-    return ZoneConfiguration(26, [PortMap("test-ctlr", 1, 2, 3, 4),PortMap("test-ctlr", 5, 6, 7, 8)])
+def zc_obj() -> ZoneData:
+    return ZoneData(26, [PortMapping("test-ctlr", 1, 2, 3, 4),PortMapping("test-ctlr", 5, 6, 7, 8)])
 
 @pytest.fixture
 def zc_json() -> str:

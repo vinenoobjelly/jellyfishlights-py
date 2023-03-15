@@ -1,2 +1,2 @@
 from .controller import JellyFishController
-from .helpers import JellyFishLightsException
+from .helpers import JellyFishException

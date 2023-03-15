@@ -1,9 +1,9 @@
 import pytest
 import time
 from threading import Thread
-from jellyfishlightspy.model import PatternName
+from jellyfishlightspy.model import Pattern
 from jellyfishlightspy.helpers import (
-    JellyFishLightsException,
+    JellyFishException,
     TimelyEvent,
     validate_brightness,
     validate_intensity,
@@ -18,65 +18,62 @@ def test_validate_brightness():
     validate_brightness(100)
     validate_brightness(0)
     validate_brightness(50)
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_brightness(-1)
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_brightness(101)
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_brightness(None)
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_brightness("256")
 
 def test_validate_intensity():
     validate_intensity(0)
     validate_intensity(255)
     validate_intensity(100)
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_intensity(-1)
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_intensity(256)
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_intensity(None)
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_intensity("256")
 
 def test_validate_rgb():
     validate_rgb((0,0,0))
     validate_rgb((255,255,255))
     validate_rgb((100,100,100))
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_rgb((-1,100,100))
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_rgb((0,100,256))
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_rgb((0,1000,0))
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_rgb((0,0,0,0))
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_rgb((0,0))
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_rgb([255,255,255])
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_rgb(None)
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_rgb(100)
 
 def test_validate_patterns():
-    valid_patterns = [PatternName("one", "plus two", False), PatternName("three and", "four", False)]
+    valid_patterns = ["one/plus two", "three and/four"]
     validate_pattern("one/plus two", valid_patterns)
     validate_pattern("three and/four", valid_patterns)
-    with pytest.raises(JellyFishLightsException):
+    with pytest.raises(JellyFishException):
         validate_pattern("bad/pattern", valid_patterns)
 
 def test_validate_zones(zc_obj):
-    valid_zones = {
-        "zone1": zc_obj,
-        "zone2": zc_obj
-    }
-    validate_zones(list(valid_zones), valid_zones)
-    validate_zones([list(valid_zones)[0]], valid_zones)
-    with pytest.raises(JellyFishLightsException):
-        validate_zones(["bad-zone"], valid_zones)
+    valid_zones = ["zone1", "zone2"]
+    validate_zones(valid_zones, valid_zones)
+    validate_zones([valid_zones[0]], valid_zones)
+    with pytest.raises(JellyFishException):
+        validate_zones(["bad/zone"], valid_zones)
 
 def test_timely_event():
     event = TimelyEvent()

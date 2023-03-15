@@ -2,9 +2,9 @@ import json
 import time
 from typing import Type, Tuple, List, Dict, Any, Optional
 from threading import Event
-from .model import RunData, RunPatternData, StateData, PatternName, PortMap, ZoneConfiguration
+from .model import RunData, PatternData, StateData, Pattern, PortMapping, ZoneData
 
-class JellyFishLightsException(Exception):
+class JellyFishException(Exception):
     """An exception raised when interacting with the jellyfishlights-py module"""
     pass
 
@@ -48,33 +48,38 @@ class TimelyEvent(Event):
             return True
         return Event.wait(self, timeout=timeout)
 
-def validate_intensity(intensity: int) -> None:
+def validate_intensity(intensity: int) -> int:
     """Validates an individual RGB intensity value (between 0 and 255)"""
     if intensity is None or type(intensity) != int or intensity < 0 or intensity > 255:
-        raise JellyFishLightsException(f"RGB intensity value {intensity} is invalid")
+        raise JellyFishException(f"RGB intensity value {intensity} is invalid")
+    return intensity
 
-def validate_rgb(rgb: Tuple[int, int, int]) -> None:
+def validate_rgb(rgb: Tuple[int, int, int]) -> Tuple[int, int, int]:
     """Validates an RGB tuple (contains 3 valid intensity values)"""
     if rgb is None or type(rgb) is not tuple or len(rgb) != 3:
-        raise JellyFishLightsException(f"RGB value {rgb} is invalid")
+        raise JellyFishException(f"RGB value {rgb} is invalid")
     for intensity in rgb:
         validate_intensity(intensity)
+    return rgb
 
-def validate_brightness(brightness: int) -> None:
+def validate_brightness(brightness: int) -> int:
     """Validates a brightness value (between 0 and 100)"""
     if brightness is None or type(brightness) != int or brightness < 0 or brightness > 100:
-        raise JellyFishLightsException(f"Brightness value {brightness} is invalid")
+        raise JellyFishException(f"Brightness value {brightness} is invalid")
+    return brightness
 
-def validate_zones(zones: List[str], valid_zones: Dict[str, ZoneConfiguration]) -> None:
+def validate_zones(zones: List[str], valid_zones: List[str]) -> List[str]:
     """Validates a list of zone values (must be in the list of values recieved from the controller)"""
     for zone in zones:
         if zone not in valid_zones:
-            raise JellyFishLightsException(f"Zone value {zone} is invalid")
+            raise JellyFishException(f"Zone value {zone} is invalid")
+    return zones
 
-def validate_pattern(pattern: str, valid_patterns: List[PatternName]) -> None:
+def validate_pattern(pattern: str, valid_patterns: List[str]) -> str:
     """Validates a pattern value (must be in the list of values recieved from the controller)"""
     if pattern not in [str(p) for p in valid_patterns]:
-        raise JellyFishLightsException(f"Pattern value {pattern} is invalid")
+        raise JellyFishException(f"Pattern value {pattern} is invalid")
+    return pattern
 
 def _stringify_state_data(obj):
     """
@@ -105,18 +110,18 @@ def _object_hook(data):
     if "speed" in data:
         return RunData(**data)
     if "colors" in data:
-        return RunPatternData(**data)
+        return PatternData(**data)
     if "state" in data:
         if "data" in data and data["data"] != "":
             # Decode StateData.data from escaped JSON string
             data["data"] = json.loads(data["data"], object_hook=_object_hook)
         return StateData(**data)
     if "folders" in data:
-        return PatternName(**data)
+        return Pattern(**data)
     if "ctlrName" in data:
-        return PortMap(**data)
+        return PortMapping(**data)
     if "numPixels" in data:
-        return ZoneConfiguration(**data)
+        return ZoneData(**data)
     return data
 
 def from_json(json_str: str):

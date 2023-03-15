@@ -21,8 +21,5 @@ def controller(controller_host) -> JellyFishController:
     jfc.connect()
     yield jfc
     # Cleanup resources after tests
+    jfc.turn_off()
     jfc.disconnect()
-
-@pytest.fixture
-def zones(controller) -> List[str]:
-    return list(controller.get_zones().keys())
