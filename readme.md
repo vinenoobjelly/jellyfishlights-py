@@ -26,7 +26,7 @@ from jellyfishlightspy import JellyFishController
 import logging
 
 # Debug logging exposes the messages sent to and received from the controller
-logging.basicConfig(level = logging.INFO)
+logging.basicConfig(level = logging.DEBUG)
 
 # Create a controller object and connect
 jfc = JellyFishController('192.168.0.245') # hostname also works
