@@ -12,7 +12,7 @@ from jellyfishlightspy.helpers import (
     validate_zones,
 )
 
-# Note: tests in model.py sufficiently cover from_json, to_json, _stringify_state_data, and _object_hook
+# Note: tests in model.py sufficiently cover from_json, to_json, _default, and _object_hook
 
 def test_validate_brightness():
     validate_brightness(100)

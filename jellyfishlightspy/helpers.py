@@ -99,7 +99,7 @@ def _default(obj):
     return __ENCODER.default(obj)
 
 def to_json(obj: Any) -> str:
-    """Serializes Python objects to a JSON string"""
+    """Serializes Python objects from this module to a JSON string compatible with the API"""
     return json.dumps(obj, default=_default)
 
 def _object_hook(data):
@@ -122,5 +122,5 @@ def _object_hook(data):
     return data
 
 def from_json(json_str: str):
-    """Deserializes a JSON string into Python objects"""
+    """Deserializes a JSON string from the API into Python objects from this module"""
     return json.loads(json_str, object_hook=_object_hook)
