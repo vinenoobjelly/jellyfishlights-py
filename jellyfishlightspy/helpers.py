@@ -46,7 +46,7 @@ class TimelyEvent(Event):
         """
         if after_ts and self.ts > after_ts:
             return True
-        return Event.wait(self, timeout=timeout)
+        return Event.wait(self, timeout = timeout)
 
 def validate_intensity(intensity: int) -> int:
     """Validates an individual RGB intensity value (between 0 and 255)"""
@@ -72,13 +72,13 @@ def validate_zones(zones: List[str], valid_zones: List[str]) -> List[str]:
     """Validates a list of zone values (must be in the list of values recieved from the controller)"""
     for zone in zones:
         if zone not in valid_zones:
-            raise JellyFishException(f"Zone value {zone} is invalid")
+            raise JellyFishException(f"Zone value '{zone}' is invalid")
     return zones
 
 def validate_pattern(pattern: str, valid_patterns: List[str]) -> str:
     """Validates a pattern value (must be in the list of values recieved from the controller)"""
     if pattern not in [str(p) for p in valid_patterns]:
-        raise JellyFishException(f"Pattern value {pattern} is invalid")
+        raise JellyFishException(f"Pattern value '{pattern}' is invalid")
     return pattern
 
 __ENCODER = json.JSONEncoder()
@@ -91,7 +91,7 @@ def _default(obj):
     if isinstance(obj, State):
         # Copy the object to avoid overwriting the original's data
         obj = State(**vars(obj))
-        obj.data = json.dumps(obj.data, default=vars) if obj.data else ""
+        obj.data = json.dumps(obj.data, default = vars) if obj.data else ""
     try:
         return vars(obj)
     except TypeError:
@@ -100,7 +100,7 @@ def _default(obj):
 
 def to_json(obj: Any) -> str:
     """Serializes Python objects from this module to a JSON string compatible with the API"""
-    return json.dumps(obj, default=_default)
+    return json.dumps(obj, default = _default)
 
 def _object_hook(data):
     """Determines the object to instantiate based on its attributes"""
@@ -111,7 +111,7 @@ def _object_hook(data):
     if "state" in data:
         if "data" in data and data["data"] != "":
             # Decode State.data from escaped JSON string
-            data["data"] = json.loads(data["data"], object_hook=_object_hook)
+            data["data"] = json.loads(data["data"], object_hook = _object_hook)
         return State(**data)
     if "folders" in data:
         return Pattern(**data)
@@ -123,4 +123,4 @@ def _object_hook(data):
 
 def from_json(json_str: str):
     """Deserializes a JSON string from the API into Python objects from this module"""
-    return json.loads(json_str, object_hook=_object_hook)
+    return json.loads(json_str, object_hook = _object_hook)

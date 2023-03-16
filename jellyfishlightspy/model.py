@@ -48,9 +48,6 @@ class State():
         return self.state != 0
 
 class Pattern:
-    folders: str
-    name: str
-
     def __init__(self, folders: str, name: str, readOnly: bool):
         self.folders = folders
         self.name = name

@@ -12,7 +12,7 @@ def helpers() -> Helpers:
 def controller_host() -> str:
     env = os.environ.get("JF_TEST_HOST")
     if not env:
-        raise pytest.UsageError("Required variable for integration testing is unset: JF_TEST_HOST")
+        raise pytest.UsageError("Required envrionment variable for integration testing is unset: JF_TEST_HOST")
     return env
 
 @pytest.fixture

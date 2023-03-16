@@ -10,4 +10,4 @@ class GetRequest:
 class SetRequest:
     def __init__(self, state: int, zoneName: List[str], file: str = "", id: str = "", data: Optional[PatternConfig] = None):
         self.cmd = 'toCtlrSet'
-        self.runPattern = State(state=state, zoneName=zoneName, file=file, id=id, data=data)
+        self.runPattern = State(state = state, zoneName = zoneName, file = file, id = id, data = data)

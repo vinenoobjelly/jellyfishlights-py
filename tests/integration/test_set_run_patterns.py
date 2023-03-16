@@ -21,28 +21,28 @@ def test_turn_on_off_all_zones(controller):
 # TODO: Figure out why the zone state is inconsistent - sometimes -1, sometimes 3
 def test_apply_light_string(controller):
     zone = controller.zone_names[0]
-    controller.apply_light_string([(255,255,255),(255,0,0),(0,255,0),(0,0,255)], 55, [zone])
+    controller.apply_light_string([(255, 255, 255), (255, 0, 0), (0, 255, 0) ,(0, 0, 255)], 55, [zone])
     state = controller.get_zone_state(zone)
     assert state.state in [-1, 3]
-    assert state.data.colors == [0,0,0,255,255,255,255,0,0,0,255,0,0,0,255]
+    assert state.data.colors == [0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255]
     assert state.data.runData.brightness == 55
-    controller.apply_light_string([(50,50,50)], 66)
+    controller.apply_light_string([(50, 50, 50)], 66)
     for zone, state in controller.get_zone_states().items():
         assert state.state in [-1, 3]
-        assert state.data.colors == [0,0,0,50,50,50]
+        assert state.data.colors == [0, 0, 0, 50, 50, 50]
         assert state.data.runData.brightness == 66
 
 def test_apply_color(controller):
     zone = controller.zone_names[0]
-    controller.apply_color((255,0,0), 88, [zone])
+    controller.apply_color((255, 0, 0), 88, [zone])
     state = controller.get_zone_state(zone)
     assert state.state == 1
-    assert state.data.colors == [255,0,0]
+    assert state.data.colors == [255, 0, 0]
     assert state.data.runData.brightness == 88
-    controller.apply_color((0,255,0), 77)
+    controller.apply_color((0, 255, 0), 77)
     for zone, state in controller.get_zone_states().items():
         assert state.state == 1
-        assert state.data.colors == [0,255,0]
+        assert state.data.colors == [0, 255, 0]
         assert state.data.runData.brightness == 77
 
 def test_apply_pattern(controller):
