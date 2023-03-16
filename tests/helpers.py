@@ -5,20 +5,21 @@ class Helpers:
 
     @staticmethod
     def recursive_vars(obj):
-        if type(obj) is list:
-            return [Helpers.recursive_vars(value) for value in obj]
-        if hasattr(obj, "__dict__"):
-            obj = vars(obj)
-        if type(obj) is dict:
-            for key, value in obj.items():
-                obj[key] = Helpers.recursive_vars(value)
-        return obj
+        # Serialze object to JSON
+        sobj = json.dumps(obj, default=vars)
+        # Deserialize JSON into a plain dictionary
+        return json.loads(sobj)
 
     @staticmethod
     def assert_marshalling_works(obj, obj_json):
+        # Serialze object to JSON (including special handling)
         s = to_json(obj)
+        # Deserialize JSON into a plain dictionary for comparison
         s_dict = json.loads(s)
+        # Compare dict to the provided reference JSON
         assert s_dict == json.loads(obj_json)
-        o = from_json(s)
-        assert Helpers.recursive_vars(o) == Helpers.recursive_vars(obj)
-        return from_json(s) # do it again because o was converted to vars
+        # Deserialize the JSON back into objects (including special handling)
+        new_obj = from_json(s)
+        # Compare the original object to the one that was serialized and then deserialized
+        assert Helpers.recursive_vars(new_obj) == Helpers.recursive_vars(obj)
+        return new_obj

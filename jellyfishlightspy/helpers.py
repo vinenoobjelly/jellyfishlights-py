@@ -81,29 +81,26 @@ def validate_pattern(pattern: str, valid_patterns: List[str]) -> str:
         raise JellyFishException(f"Pattern value {pattern} is invalid")
     return pattern
 
-def _stringify_state_data(obj):
+__ENCODER = json.JSONEncoder()
+
+def _default(obj):
     """
-    Special handling for StateData.data because the API requires an escaped JSON string instead of normal JSON.
-    This recursive method searches the input object for StateData dicts and serializes them into a string.
+    Serializes Python objects into dictionaries containing the object's instance variables (via the standard vars() function).
+    There is special handling for StateData.data because the API requires an escaped JSON string instead of normal JSON.
     """
-    if type(obj) is list:
-        return [_stringify_state_data(value) for value in obj]
-    if type(obj) is dict:
-        if "data" in obj:
-            obj["data"] = json.dumps(obj["data"]) if obj["data"] else ""
-        else:
-            for k, v in obj.items():
-                if type(v) in [list, dict]:
-                    obj[k] = _stringify_state_data(v)
-    return obj
+    if isinstance(obj, StateData):
+        # Copy the object to avoid overwriting the original's data
+        obj = StateData(**vars(obj))
+        obj.data = json.dumps(obj.data, default=vars) if obj.data else ""
+    try:
+        return vars(obj)
+    except TypeError:
+        pass
+    return __ENCODER.default(obj)
 
 def to_json(obj: Any) -> str:
     """Serializes Python objects to a JSON string"""
-    jstr = json.dumps(obj, default=vars)
-    # Convert StateData.data to JSON string instead of plain JSON
-    jdict = json.loads(jstr)
-    fixed = _stringify_state_data(jdict)
-    return json.dumps(fixed)
+    return json.dumps(obj, default=_default)
 
 def _object_hook(data):
     """Determines the object to instantiate based on its attributes"""
