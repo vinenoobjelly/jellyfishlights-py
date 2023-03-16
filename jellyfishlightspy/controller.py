@@ -8,7 +8,7 @@ import time
 from typing import Dict, List, Tuple, Optional, Any
 from threading import Thread, Lock
 from .const import LOGGER, ZONE_DATA, PATTERN_DATA, STATE_DATA, DEFAULT_TIMEOUT
-from .model import Pattern, RunData, PatternData, StateData, ZoneData
+from .model import Pattern, RunConfig, PatternConfig, State, ZoneConfig
 from .requests import GetRequest, SetRequest
 from .helpers import (
     JellyFishException,
@@ -50,7 +50,7 @@ class JellyFishController:
         return self.__ws_monitor.connected
 
     @property
-    def zones(self) -> Dict[str, ZoneData]:
+    def zones(self) -> Dict[str, ZoneConfig]:
         """The current zones and their configuration (returns cached data if available)"""
         if len(self.__ws_monitor.zones) == 0:
             return self.get_zones()
@@ -74,13 +74,13 @@ class JellyFishController:
         return [str(p) for p in self.patterns if p.name]
 
     @property
-    def zone_states(self) -> Dict[str, StateData]:
+    def zone_states(self) -> Dict[str, State]:
         """The state of each zone (returns cached data if available)"""
         if len(self.__ws_monitor.zone_states) == 0:
             return self.get_zone_states()
         return self.__ws_monitor.zone_states
 
-    def get_zones(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict:
+    def get_zones(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, ZoneConfig]:
         """Retrieves the list of current zones and their configuration from the controller and caches the data"""
         try:
             self.__send(GetRequest(ZONE_DATA))
@@ -102,11 +102,11 @@ class JellyFishController:
         except Exception as e:
             raise JellyFishException("Error encountered while retrieving pattern data") from e
 
-    def get_zone_state(self, zone: str, timeout: Optional[float] = DEFAULT_TIMEOUT) -> StateData:
+    def get_zone_state(self, zone: str, timeout: Optional[float] = DEFAULT_TIMEOUT) -> State:
         """Retrieves the current state of the specified zone from the controller and caches the data"""
         return self.get_zone_states([zone], timeout)[zone]
 
-    def get_zone_states(self, zones: List[str] = None, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, StateData]:
+    def get_zone_states(self, zones: List[str] = None, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, State]:
         """Retrieves the current state of the specified zones (or all zones if not provided) from the controller and caches the data"""
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
@@ -193,13 +193,13 @@ class JellyFishController:
                 colors.extend(rgb)
                 colors_pos.append(i)
 
-            rd = RunData(speed = 0, brightness = brightness, effect = "No Effect", effectValue = 0, rgbAdj = [100, 100, 100])
-            rpd = PatternData(colors = colors, colorPos = colors_pos, runData = rd, type = "Soffit")
+            rc = RunConfig(speed = 0, brightness = brightness, effect = "No Effect", effectValue = 0, rgbAdj = [100, 100, 100])
+            pc = PatternConfig(colors = colors, colorPos = colors_pos, runData = rc, type = "Soffit")
 
             req = SetRequest(
                 state = 3,
                 zoneName = zones,
-                data = rpd
+                data = pc
             )
             self.__send(req)
             if sync:
@@ -215,13 +215,13 @@ class JellyFishController:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             validate_rgb(rgb)
             validate_brightness(brightness)
-            rd = RunData(speed = 10, brightness = brightness, effect = "No Effect", effectValue = 0, rgbAdj = [100, 100, 100])
-            rpd = PatternData(colors = [*rgb], type = "Color", skip = 1, direction = "Left", runData = rd)
+            rc = RunConfig(speed = 10, brightness = brightness, effect = "No Effect", effectValue = 0, rgbAdj = [100, 100, 100])
+            pc = PatternConfig(colors = [*rgb], type = "Color", skip = 1, direction = "Left", runData = rc)
 
             req = SetRequest(
                 state = 1,
                 zoneName = zones,
-                data = rpd
+                data = pc
             )
             self.__send(req)
             if sync:
@@ -253,9 +253,9 @@ class WebSocketMonitor:
 
     def __init__(self, controller: JellyFishController):
         self.__controller = controller
-        self.__zones: Dict[str, ZoneData] = {}
+        self.__zones: Dict[str, ZoneConfig] = {}
         self.__patterns: List[Pattern] = []
-        self.__zone_states: Dict[str, StateData] = {}
+        self.__zone_states: Dict[str, State] = {}
         self.__connected: TimelyEvent = TimelyEvent()
         self.__events = {
             ZONE_DATA: TimelyEvent(),
@@ -286,7 +286,7 @@ class WebSocketMonitor:
         return self.__connected.is_set()
 
     @property
-    def zones(self) -> Dict[str, ZoneData]:
+    def zones(self) -> Dict[str, ZoneConfig]:
         """The current zones and their configuration. Ensures thread safe access via Locks"""
         with self.__locks[ZONE_DATA]:
             return self.__zones
@@ -298,7 +298,7 @@ class WebSocketMonitor:
             return self.__patterns
 
     @property
-    def zone_states(self) -> Dict[str, StateData]:
+    def zone_states(self) -> Dict[str, State]:
         """The state of each zone. Ensures thread safe access via Locks"""
         with self.__locks[STATE_DATA]:
             return self.__zone_states

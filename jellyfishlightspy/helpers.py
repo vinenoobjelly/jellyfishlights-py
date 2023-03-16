@@ -2,7 +2,7 @@ import json
 import time
 from typing import Type, Tuple, List, Dict, Any, Optional
 from threading import Event
-from .model import RunData, PatternData, StateData, Pattern, PortMapping, ZoneData
+from .model import RunConfig, PatternConfig, State, Pattern, PortMapping, ZoneConfig
 
 class JellyFishException(Exception):
     """An exception raised when interacting with the jellyfishlights-py module"""
@@ -86,11 +86,11 @@ __ENCODER = json.JSONEncoder()
 def _default(obj):
     """
     Serializes Python objects into dictionaries containing the object's instance variables (via the standard vars() function).
-    There is special handling for StateData.data because the API requires an escaped JSON string instead of normal JSON.
+    There is special handling for State.data because the API requires an escaped JSON string instead of normal JSON.
     """
-    if isinstance(obj, StateData):
+    if isinstance(obj, State):
         # Copy the object to avoid overwriting the original's data
-        obj = StateData(**vars(obj))
+        obj = State(**vars(obj))
         obj.data = json.dumps(obj.data, default=vars) if obj.data else ""
     try:
         return vars(obj)
@@ -105,20 +105,20 @@ def to_json(obj: Any) -> str:
 def _object_hook(data):
     """Determines the object to instantiate based on its attributes"""
     if "speed" in data:
-        return RunData(**data)
+        return RunConfig(**data)
     if "colors" in data:
-        return PatternData(**data)
+        return PatternConfig(**data)
     if "state" in data:
         if "data" in data and data["data"] != "":
-            # Decode StateData.data from escaped JSON string
+            # Decode State.data from escaped JSON string
             data["data"] = json.loads(data["data"], object_hook=_object_hook)
-        return StateData(**data)
+        return State(**data)
     if "folders" in data:
         return Pattern(**data)
     if "ctlrName" in data:
         return PortMapping(**data)
     if "numPixels" in data:
-        return ZoneData(**data)
+        return ZoneConfig(**data)
     return data
 
 def from_json(json_str: str):

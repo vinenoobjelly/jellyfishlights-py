@@ -8,12 +8,12 @@ class PortMapping():
         self.phyStartIdx = phyStartIdx
         self.zoneRGBStartIdx = zoneRGBStartIdx
 
-class ZoneData():
+class ZoneConfig():
     def __init__(self, numPixels: int, portMap: List[PortMapping]):
         self.numPixels = numPixels
         self.portMap = portMap
 
-class RunData():
+class RunConfig():
     def __init__(self, speed: Optional[int], brightness: Optional[int], effect: Optional[str], effectValue: Optional[int], rgbAdj: Optional[List[int]]) -> None:
         self.speed = speed
         self.brightness = brightness
@@ -21,8 +21,8 @@ class RunData():
         self.effectValue = effectValue
         self.rgbAdj = rgbAdj
 
-class PatternData():
-    def __init__(self, colors: List[int], type: str, runData: RunData, direction: str = "Center", spaceBetweenPixels: int = 2, numOfLeds: int = 1, skip: int = 2, effectBetweenPixels: str = "No Color Transform", colorPos: List[int] = [-1], cursor: int = -1) -> None:
+class PatternConfig():
+    def __init__(self, colors: List[int], type: str, runData: RunConfig, direction: str = "Center", spaceBetweenPixels: int = 2, numOfLeds: int = 1, skip: int = 2, effectBetweenPixels: str = "No Color Transform", colorPos: List[int] = [-1], cursor: int = -1) -> None:
         self.colors = colors
         self.type = type
         self.runData = runData
@@ -34,8 +34,8 @@ class PatternData():
         self.colorPos = colorPos
         self.cursor = cursor
 
-class StateData():
-    def __init__(self, state: int, zoneName: List[str], file: Optional[str] = None, id: Optional[str] = None, data: Optional[PatternData] = None):
+class State():
+    def __init__(self, state: int, zoneName: List[str], file: Optional[str] = None, id: Optional[str] = None, data: Optional[PatternConfig] = None):
         self.state = state
         self.zoneName = zoneName
         self.file = file
