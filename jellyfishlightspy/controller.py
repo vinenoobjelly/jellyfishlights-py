@@ -34,15 +34,7 @@ class JellyFishController:
         self.address = address
         self.__ws: websocket.WebSocketApp
         self.__ws_thread: Thread
-        self.__ws_monitor = WebSocketMonitor(self)
-
-    def __send(self, data: Any) -> None:
-        """Sends data to the controller over the web socket connection"""
-        if not self.__ws_monitor.connected:
-            raise JellyFishException("Not connected to controller")
-        msg = to_json(data)
-        LOGGER.debug("Sending: %s", msg)
-        self.__ws.send(msg)
+        self.__ws_monitor = WebSocketMonitor(address)
 
     @property
     def connected(self) -> bool:
@@ -63,15 +55,15 @@ class JellyFishController:
 
     @property
     def patterns(self) -> List[Pattern]:
-        """The list of preset patterns (returns cached data if available)"""
+        """The list of preset patterns, including folders (returns cached data if available)"""
         if len(self.__ws_monitor.patterns) == 0:
             return self.get_patterns()
         return self.__ws_monitor.patterns
 
     @property
     def pattern_names(self) -> List[str]:
-        """The current pattern names (returns cached data if available)"""
-        return [str(p) for p in self.patterns if p.name]
+        """The current pattern names, excluding folders (returns cached data if available)"""
+        return [str(p) for p in self.patterns if not p.is_folder]
 
     @property
     def zone_states(self) -> Dict[str, State]:
@@ -79,6 +71,43 @@ class JellyFishController:
         if len(self.__ws_monitor.zone_states) == 0:
             return self.get_zone_states()
         return self.__ws_monitor.zone_states
+
+    def connect(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> None:
+        """Establishes a connection to the JellyFish Lighting controller at the given address and begins listening for messages"""
+        try:
+            self.__ws = websocket.WebSocketApp(
+                f"ws://{self.address}:9000",
+                on_open = self.__ws_monitor.on_open,
+                on_close = self.__ws_monitor.on_close,
+                on_message = self.__ws_monitor.on_message
+            )
+            self.__ws_thread = Thread(target=lambda: self.__ws.run_forever(), daemon=True)
+            self.__ws_thread.start()
+            self.__ws_monitor.await_connection(timeout)
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException(f"Could not connect to controller at {self.address}") from e
+
+    def disconnect(self, timeout: Optional[float] = DEFAULT_TIMEOUT):
+        """Disconnects from the JellyFish Lighting controller"""
+        try:
+            self.__ws.close()
+            self.__ws_thread.join(timeout)
+            if self.__ws_thread.is_alive():
+                raise JellyFishException(f"Attempt to disconnect from controller at {self.address} timed out")
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException(f"Error encountered while disconnecting from controller at {self.address}") from e
+
+    def __send(self, data: Any) -> None:
+        """Sends data to the controller over the web socket connection"""
+        if not self.connected:
+            raise JellyFishException("Not connected to controller")
+        msg = to_json(data)
+        LOGGER.debug("Sending: %s", msg)
+        self.__ws.send(msg)
 
     def get_zones(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, ZoneConfig]:
         """Retrieves the list of current zones and their configuration from the controller and caches the data"""
@@ -118,35 +147,6 @@ class JellyFishController:
         except Exception as e:
             raise JellyFishException(f"Error encountered while retrieving the state of zone(s) {zones}") from e
 
-    def connect(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> None:
-        """Establishes a connection to the JellyFish Lighting controller at the given address and begins listening for messages"""
-        try:
-            self.__ws = websocket.WebSocketApp(
-                f"ws://{self.address}:9000",
-                on_open = self.__ws_monitor.on_open,
-                on_close = self.__ws_monitor.on_close,
-                on_message = self.__ws_monitor.on_message
-            )
-            self.__ws_thread = Thread(target=lambda: self.__ws.run_forever(), daemon=True)
-            self.__ws_thread.start()
-            self.__ws_monitor.await_connection(timeout)
-        except JellyFishException:
-            raise
-        except Exception as e:
-            raise JellyFishException(f"Could not connect to controller at {self.address}") from e
-
-    def disconnect(self, timeout: Optional[float] = DEFAULT_TIMEOUT):
-        """Disconnects from the JellyFish Lighting controller"""
-        try:
-            self.__ws.close()
-            self.__ws_thread.join(timeout)
-            if self.__ws_thread.is_alive():
-                raise JellyFishException(f"Attempt to disconnect from controller at {self.address} timed out")
-        except JellyFishException:
-            raise
-        except Exception as e:
-            raise JellyFishException(f"Error encountered while disconnecting from controller at {self.address}") from e
-
     def __turn_on_off(self, on: bool, zones: List[str], sync: bool, timeout: float) -> None:
         """Convenience function that turns zones on or off"""
         try:
@@ -180,8 +180,8 @@ class JellyFishController:
     def apply_light_string(self, light_string: List[Tuple[int, int, int]], brightness: int = 100, zones: List[str] = None, sync: bool = True, timeout: float = DEFAULT_TIMEOUT) -> None:
         """
         Sets lights in the provided zone(s) to a custom string of colors at the given brightness (or all zones
-        if not provided). If sync is set to True (the default), the function call will not return until a
-        confirmation response is received from the controller or the request times out.
+        if not provided. Default brighness = 100%). If sync is set to True (the default), the function call will
+        not return until a confirmation response is received from the controller or the request times out.
         """
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
@@ -209,7 +209,7 @@ class JellyFishController:
         except Exception as e:
             raise JellyFishException(f"Error encountered while applying light string to zone(s) {zones}") from e
 
-    def apply_color(self, rgb: Tuple[int,int,int], brightness: int = 100, zones: List[str] = None, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
+    def apply_color(self, rgb: Tuple[int, int, int], brightness: int = 100, zones: List[str] = None, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
         """Sets all lights in the provided zone(s) to a solid color at the given brightness (or all zones if not provided. Default brighness = 100%)"""
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
@@ -251,8 +251,8 @@ class JellyFishController:
 
 class WebSocketMonitor:
 
-    def __init__(self, controller: JellyFishController):
-        self.__controller = controller
+    def __init__(self, address: str):
+        self.__address = address
         self.__zones: Dict[str, ZoneConfig] = {}
         self.__patterns: List[Pattern] = []
         self.__zone_states: Dict[str, State] = {}
@@ -268,15 +268,15 @@ class WebSocketMonitor:
             STATE_DATA: Lock()
         }
 
-    def __get_run_pattern_event(self, zone: str) -> TimelyEvent:
-        """Returns the TimelyEvent object that notifies when new RunPattern data is available for a zone"""
+    def __get_state_data_event(self, zone: str) -> TimelyEvent:
+        """Returns the TimelyEvent object that notifies when new State data is available for a zone"""
         if zone not in self.__events[STATE_DATA]:
             self.__events[STATE_DATA][zone] = TimelyEvent()
         return self.__events[STATE_DATA][zone]
 
     def __trigger_event(self, data_key: str, zone: Optional[str] = None) -> None:
-        """Triggers a TimelyEvent object to notify the main thread when new  data is available"""
-        event = self.__events[data_key] if zone is None else self.__get_run_pattern_event(zone)
+        """Triggers a TimelyEvent object to notify the main thread when new data is available"""
+        event = self.__get_state_data_event(zone) if zone else self.__events[data_key]
         event.set()
         event.clear()
 
@@ -304,48 +304,60 @@ class WebSocketMonitor:
             return self.__zone_states
 
     def await_connection(self, timeout: float) -> None:
+        """Waits for a connection to the controler to be established. Raises a JellyFishException upon timeout"""
         if not self.__connected.wait(timeout=timeout):
-            raise JellyFishException(f"Connection to controller at {self.__controller.address} timed out")
+            raise JellyFishException(f"Connection to controller at {self.__address} timed out")
 
     def await_zone_data(self, timeout: float) -> None:
+        """Waits for new zone data to be received from the controller. Raises a JellyFishException upon timeout"""
         if not self.__events[ZONE_DATA].wait(timeout=timeout):
             raise JellyFishException("Request for zone data timed out")
 
     def await_pattern_data(self, timeout: float) -> None:
+        """Waits for new pattern data to be received from the controller. Raises a JellyFishException upon timeout"""
         if not self.__events[PATTERN_DATA].wait(timeout=timeout):
             raise JellyFishException("Request for pattern data timed out")
 
-    def await_zone_state_data(self, zones: List[str], timeout: float):
-        start = time.perf_counter()
+    def await_zone_state_data(self, zones: List[str], timeout: float) -> None:
+        """Waits for new zone state data to be received from the controller. Raises a JellyFishException upon timeout"""
+        start_ts = time.perf_counter()
         for zone in zones:
-            event = self.__get_run_pattern_event(zone)
-            timeout_remaining = timeout - (time.perf_counter() - start)
-            if not event.wait(timeout = timeout_remaining if timeout_remaining > 0 else 0, after_ts = start):
+            # We cannot simply wait for each zone-specific event sequentially because messages can be received simultaneously.
+            # To overcome this, use the TimelyEvent timestamp to check if data has been received since this function was called.
+            event = self.__get_state_data_event(zone)
+            timeout_remaining = timeout - (time.perf_counter() - start_ts) # Decrement the timeout as we wait for each event
+            if not event.wait(timeout = timeout_remaining, after_ts = start_ts):
                 raise JellyFishException(f"Request for the state data of zones '{zones}' timed out")
 
     def on_open(self, ws):
         """Callback method that is invoked when the web socket connection is opened"""
-        LOGGER.debug("Connected to the JellyFish Lighting controller at %s", self.__controller.address)
+        LOGGER.debug("Connected to the JellyFish Lighting controller at %s", self.__address)
         self.__connected.set()
 
     def on_close(self, ws, status, message):
         """Callback method that is invoked when the web socket connection is closed"""
-        LOGGER.debug("Disconnected from the JellyFish Lighting controller at %s", self.__controller.address)
+        LOGGER.debug("Disconnected from the JellyFish Lighting controller at %s", self.__address)
         self.__connected.clear()
 
     def on_message(self, ws, message):
         """Callback method that is invoked when data is received over the web socket connection"""
         LOGGER.debug("Recieved: %s", message)
         try:
+            # Parse the data
             data = from_json(message)
+            # Check what type of data the message contains (zones, patterns, or states).
+            # Then, update cached data in a thread safe manner (using locks) and trigger
+            # events to let listeners/waiters know that new data has been received
             if ZONE_DATA in data:
                 with self.__locks[ZONE_DATA]:
                     self.__zones = data[ZONE_DATA]
                 self.__trigger_event(ZONE_DATA)
+
             elif PATTERN_DATA in data:
                 with self.__locks[PATTERN_DATA]:
                     self.__patterns = data[PATTERN_DATA]
                 self.__trigger_event(PATTERN_DATA)
+
             elif STATE_DATA in data:
                 state = data[STATE_DATA]
                 with self.__locks[STATE_DATA]:
@@ -353,4 +365,4 @@ class WebSocketMonitor:
                         self.__zone_states[zone] = state
                         self.__trigger_event(STATE_DATA, zone)
         except Exception:
-            LOGGER.exception("Error encountered while processing websocket data")
+            LOGGER.exception("Error encountered while processing web socket message: '%s'", message)

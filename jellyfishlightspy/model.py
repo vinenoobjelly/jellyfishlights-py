@@ -53,5 +53,9 @@ class Pattern:
         self.name = name
         self.readOnly = readOnly
 
+    @property
+    def is_folder(self) -> bool:
+        return not bool(self.name)
+
     def __str__(self) -> str:
         return f'{self.folders}/{self.name}'
