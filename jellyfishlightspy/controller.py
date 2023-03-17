@@ -79,7 +79,8 @@ class JellyFishController:
                 f"ws://{self.address}:9000",
                 on_open = self.__ws_monitor.on_open,
                 on_close = self.__ws_monitor.on_close,
-                on_message = self.__ws_monitor.on_message
+                on_message = self.__ws_monitor.on_message,
+                on_error = self.__ws_monitor.on_error
             )
             self.__ws_thread = Thread(target=lambda: self.__ws.run_forever(), daemon=True)
             self.__ws_thread.start()
@@ -366,3 +367,7 @@ class WebSocketMonitor:
                         self.__trigger_event(STATE_DATA, zone)
         except Exception:
             LOGGER.exception("Error encountered while processing web socket message: '%s'", message)
+
+    def on_error(self, ws, error):
+        """Callback method that is invoked when the web socket connection encounters an error"""
+        LOGGER.error("Web socket connection to the JellyFish Lighting controller at %s encountered an error: %s", self.__address, error)
