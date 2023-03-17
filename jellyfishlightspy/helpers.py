@@ -28,7 +28,7 @@ class TimelyEvent(Event):
         self.ts = time.perf_counter()
         Event.set(self)
 
-    def wait(self, timeout: Optional[float] = None, after_ts: Optional[int] = None) -> bool:
+    def wait(self, timeout: Optional[float] = None, after_ts: Optional[float] = None) -> bool:
         """
         Block until the internal flag is true.
 
@@ -48,38 +48,31 @@ class TimelyEvent(Event):
             return True
         return Event.wait(self, timeout = timeout)
 
-def validate_intensity(intensity: int) -> int:
-    """Validates an individual RGB intensity value (between 0 and 255)"""
-    if intensity is None or type(intensity) != int or intensity < 0 or intensity > 255:
-        raise JellyFishException(f"RGB intensity value {intensity} is invalid")
-    return intensity
-
 def validate_rgb(rgb: Tuple[int, int, int]) -> Tuple[int, int, int]:
     """Validates an RGB tuple (contains 3 valid intensity values)"""
-    if rgb is None or type(rgb) is not tuple or len(rgb) != 3:
-        raise JellyFishException(f"RGB value {rgb} is invalid")
-    for intensity in rgb:
-        validate_intensity(intensity)
-    return rgb
+    if rgb is not None and type(rgb) is tuple and len(rgb) == 3:
+        if all((i is not None and type(i) is int and 0 <= i <= 255) for i in rgb):
+            return rgb
+    raise JellyFishException(f"RGB value {rgb} is invalid (must be a tuple containing three integers between 0 and 255)")
 
 def validate_brightness(brightness: int) -> int:
     """Validates a brightness value (between 0 and 100)"""
-    if brightness is None or type(brightness) != int or brightness < 0 or brightness > 100:
-        raise JellyFishException(f"Brightness value {brightness} is invalid")
-    return brightness
+    if brightness is not None and type(brightness) is int and 0 <= brightness <= 100:
+        return brightness
+    raise JellyFishException(f"Brightness value {brightness} is invalid (but be an integer between 0 and 100)")
 
 def validate_zones(zones: List[str], valid_zones: List[str]) -> List[str]:
     """Validates a list of zone values (must be in the list of values recieved from the controller)"""
-    for zone in zones:
-        if zone not in valid_zones:
-            raise JellyFishException(f"Zone value '{zone}' is invalid")
-    return zones
+    invalid_zones = [zone for zone in zones if zone not in valid_zones]
+    if len(invalid_zones) == 0:
+        return zones
+    raise JellyFishException(f"Zone name(s) {invalid_zones} are invalid")
 
 def validate_pattern(pattern: str, valid_patterns: List[str]) -> str:
     """Validates a pattern value (must be in the list of values recieved from the controller)"""
-    if pattern not in [str(p) for p in valid_patterns]:
-        raise JellyFishException(f"Pattern value '{pattern}' is invalid")
-    return pattern
+    if pattern in valid_patterns:
+        return pattern
+    raise JellyFishException(f"Pattern name '{pattern}' is invalid")
 
 __ENCODER = json.JSONEncoder()
 

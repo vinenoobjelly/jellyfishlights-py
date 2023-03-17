@@ -12,6 +12,7 @@ def test_connect(controller_host):
     assert len(jfc.patterns) > 0
     jfc.disconnect()
     assert not jfc.connected
+    assert len(jfc.patterns) > 0 # now uses cached results
     with pytest.raises(JellyFishException) as e:
         jfc.get_patterns()
         assert "Not connected" in str(e)

@@ -1,4 +1,4 @@
-# Python API wrapper for JellyFish Lights
+# Python wrapper for JellyFish Lights web socket API
 
 ~~The hope is to make this a pip installable package~~
 Now available through pypi/pip!
@@ -14,8 +14,8 @@ To install:
   - Zone configuration
   - Preset patterns
   - Zone states
-- Turn on and off controller lights
-- Play a pattern
+- Turn zones on and off
+- Play a preset pattern
 - Set lights to a solid color with brightness control
 - Set any individual lights you want with brightness control
 
@@ -40,7 +40,7 @@ print(f"Patterns: {jfc.pattern_names}")
 
 # Run a preset pattern on all zones
 # Note: Many commands have an optional zones parameter.
-# If not filled, it defaults to all currently configured zones
+# If not filled, it defaults to all zones
 jfc.apply_pattern('Special Effects/Red Waves')
 
 # Set 'front-zone' and 'back-zone' to a solid color (white @ 100% brightness in this case)

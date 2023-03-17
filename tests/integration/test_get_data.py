@@ -1,9 +1,8 @@
 from jellyfishlightspy.model import Pattern, ZoneConfig, PortMapping, State
 
 def test_get_patterns(controller):
-    patterns = controller.get_patterns()
+    patterns = controller.patterns
     assert patterns and len(patterns) > 0
-    assert controller.patterns and len(controller.patterns) == len(patterns)
     for pattern in patterns:
         assert type(pattern) is Pattern
 
@@ -22,7 +21,6 @@ def test_get_zone_states(controller, helpers):
     state = controller.get_zone_state(test_zone)
     assert isinstance(state, State)
     states = controller.get_zone_states()
-    assert len(zones) == len(states)
     assert set(zones) == set(states.keys())
     assert helpers.recursive_vars(state) == helpers.recursive_vars(states[test_zone])
     for zone, state in states.items():

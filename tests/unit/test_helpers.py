@@ -6,7 +6,6 @@ from jellyfishlightspy.helpers import (
     JellyFishException,
     TimelyEvent,
     validate_brightness,
-    validate_intensity,
     validate_rgb,
     validate_pattern,
     validate_zones,
@@ -27,19 +26,6 @@ def test_validate_brightness():
     with pytest.raises(JellyFishException):
         validate_brightness("256")
 
-def test_validate_intensity():
-    validate_intensity(0)
-    validate_intensity(255)
-    validate_intensity(100)
-    with pytest.raises(JellyFishException):
-        validate_intensity(-1)
-    with pytest.raises(JellyFishException):
-        validate_intensity(256)
-    with pytest.raises(JellyFishException):
-        validate_intensity(None)
-    with pytest.raises(JellyFishException):
-        validate_intensity("256")
-
 def test_validate_rgb():
     validate_rgb((0,0,0))
     validate_rgb((255,255,255))
@@ -58,6 +44,10 @@ def test_validate_rgb():
         validate_rgb([255,255,255])
     with pytest.raises(JellyFishException):
         validate_rgb(None)
+    with pytest.raises(JellyFishException):
+        validate_rgb((None, 100, 100))
+    with pytest.raises(JellyFishException):
+        validate_rgb((100, '100', 100))
     with pytest.raises(JellyFishException):
         validate_rgb(100)
 
