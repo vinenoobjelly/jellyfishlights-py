@@ -7,7 +7,7 @@ from jellyfishlightspy.helpers import (
     TimelyEvent,
     validate_brightness,
     validate_rgb,
-    validate_pattern,
+    validate_patterns,
     validate_zones,
 )
 
@@ -53,10 +53,10 @@ def test_validate_rgb():
 
 def test_validate_patterns():
     valid_patterns = ["one/plus two", "three and/four"]
-    validate_pattern("one/plus two", valid_patterns)
-    validate_pattern("three and/four", valid_patterns)
+    validate_patterns([valid_patterns[0]], valid_patterns)
+    validate_patterns(valid_patterns, valid_patterns)
     with pytest.raises(JellyFishException):
-        validate_pattern("bad/pattern", valid_patterns)
+        validate_patterns(["bad/pattern"], valid_patterns)
 
 def test_validate_zones(zc_obj):
     valid_zones = ["zone1", "zone2"]

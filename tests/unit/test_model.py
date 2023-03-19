@@ -48,3 +48,6 @@ def test_pattern_str():
     n = "test-name"
     p = Pattern(f, n, True)
     assert str(p) == f"{f}/{n}"
+    p2 = Pattern.from_str(str(p))
+    assert p.folders == p2.folders
+    assert p.name == p2.name

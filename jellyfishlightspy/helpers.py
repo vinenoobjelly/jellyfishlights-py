@@ -3,6 +3,7 @@ import time
 from typing import Type, Tuple, List, Dict, Any, Optional
 from threading import Event
 from .model import RunConfig, PatternConfig, State, Pattern, PortMapping, ZoneConfig
+from .requests import SetPatternConfigRequest
 
 class JellyFishException(Exception):
     """An exception raised when interacting with the jellyfishlights-py module"""
@@ -68,25 +69,35 @@ def validate_zones(zones: List[str], valid_zones: List[str]) -> List[str]:
         return zones
     raise JellyFishException(f"Zone name(s) {invalid_zones} are invalid")
 
-def validate_pattern(pattern: str, valid_patterns: List[str]) -> str:
-    """Validates a pattern value (must be in the list of values recieved from the controller)"""
-    if pattern in valid_patterns:
-        return pattern
-    raise JellyFishException(f"Pattern name '{pattern}' is invalid")
+def validate_patterns(patterns: List[str], valid_patterns: List[str]) -> str:
+    """Validates pattern values (must be in the list of values recieved from the controller)"""
+    invalid_patterns = [pattern for pattern in patterns if pattern not in valid_patterns]
+    if len(invalid_patterns) == 0:
+        return patterns
+    raise JellyFishException(f"Pattern name(s) {invalid_patterns} are invalid")
+
+def _serialize_data_attributes(obj: dict) -> dict:
+    """
+    Special handling for State.data and SetPatternConfigRequest.patternFileData.jsonData
+    because the API requires an escaped JSON string instead of normal JSON
+    """
+    obj = obj.copy()
+    # Encode objects into strings where the API requires it
+    for attr in ["data", "jsonData"]:
+        if attr in obj:
+            obj[attr] = json.dumps(obj[attr], default = _default) if obj[attr] else ""
+    # Cover cases where these attributes are on a child dict (e.g. SetPatternConfigRequest)
+    for subattr in list(obj):
+        if isinstance(obj[subattr], dict):
+            obj[subattr] = _serialize_data_attributes(obj[subattr])
+    return obj
 
 __ENCODER = json.JSONEncoder()
 
 def _default(obj):
-    """
-    Serializes Python objects into dictionaries containing the object's instance variables (via the standard vars() function).
-    There is special handling for State.data because the API requires an escaped JSON string instead of normal JSON.
-    """
-    if isinstance(obj, State):
-        # Copy the object to avoid overwriting the original's data
-        obj = State(**vars(obj))
-        obj.data = json.dumps(obj.data, default = vars) if obj.data else ""
+    """Serializes Python objects into dictionaries containing the object's instance variables (via the standard vars() function)."""
     try:
-        return vars(obj)
+        return _serialize_data_attributes(vars(obj))
     except TypeError:
         pass
     return __ENCODER.default(obj)
@@ -97,16 +108,20 @@ def to_json(obj: Any) -> str:
 
 def _object_hook(data):
     """Determines the object to instantiate based on its attributes"""
+
+    # Decode escaped JSON strings that may exist within the plain JSON
+    for attr in ["data", "jsonData"]:
+        if (attr in data and data[attr] != ""):
+            data[attr] = json.loads(data[attr], object_hook = _object_hook)
+
+    # Instantiate the appropriate objects (vs. plain dicts)
     if "speed" in data:
         return RunConfig(**data)
     if "colors" in data:
         return PatternConfig(**data)
     if "state" in data:
-        if "data" in data and data["data"] != "":
-            # Decode State.data from escaped JSON string
-            data["data"] = json.loads(data["data"], object_hook = _object_hook)
         return State(**data)
-    if "folders" in data:
+    if "readOnly" in data:
         return Pattern(**data)
     if "ctlrName" in data:
         return PortMapping(**data)

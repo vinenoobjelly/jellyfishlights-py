@@ -12,7 +12,7 @@ To install:
 - Connect to a local JellyFish Lighting controller over websocket
 - Retrieve the following data:
   - Zone configuration
-  - Preset patterns
+  - Preset patterns and their configurations
   - Zone states
 - Turn zones on and off
 - Play a preset pattern
@@ -66,6 +66,10 @@ jfc.turn_off()
 
 # Turn on the 'front-zone' zone - the lights will be in the same state as when they were last on
 jfc.turn_on(['front-zone'])
+
+# Retrieve a pattern configuration
+print(jfc.get_pattern_config("Colors/Green"))
+
 ```
 
 ## Contributing
