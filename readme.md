@@ -73,7 +73,7 @@ config = jfc.get_pattern_config("Colors/Green")
 print(config)
 
 # Customize the pattern configuration and run it on the 'front-zone' zone
-config.colors.extend([(0, 0, 0)])
+config.colors.extend([0, 0, 0])
 config.type = "Chase"
 config.direction = "Center"
 config.spaceBetweenPixels = 8
