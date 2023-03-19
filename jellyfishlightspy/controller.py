@@ -17,6 +17,7 @@ from .helpers import (
     validate_brightness,
     validate_zones,
     validate_patterns,
+    validate_pattern_config,
     to_json,
     from_json
 )
@@ -264,7 +265,7 @@ class JellyFishController:
             raise JellyFishException(f"Error encountered while applying color to zone(s) {zones}") from e
 
     def apply_pattern(self, pattern: str, zones: List[str] = None, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
-        """Activates a predefined pattern on the provided zone(s)"""
+        """Activates a predefined pattern on the provided zone(s) (or all zones if not provided)"""
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             validate_patterns([pattern], self.pattern_names)
@@ -280,6 +281,24 @@ class JellyFishController:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while applying pattern to zone(s) {zones}") from e
+
+    def apply_pattern_config(self, config: PatternConfig, zones: List[str] = None, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
+        """Activates a pattern configuration on the provided zone(s) (or all zones if not provided)"""
+        try:
+            zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
+            validate_pattern_config(config, zones)
+            req = SetStateRequest(
+                state = 1,
+                zoneName = zones,
+                data = config
+            )
+            self.__send(req)
+            if sync:
+                self.__ws_monitor.await_zone_state_data(zones, timeout)
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException(f"Error encountered while applying pattern config to zone(s) {zones}") from e
 
 class WebSocketMonitor:
 

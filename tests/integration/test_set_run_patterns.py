@@ -59,3 +59,35 @@ def test_apply_pattern(controller):
     for name, state in controller.get_zone_states().items():
         assert state.is_on
         assert state.file == p2 if name == zone else p1
+
+def test_apply_pattern_config(controller):
+    config = controller.get_pattern_config("Colors/Green")
+    config.colors.extend([0, 0, 0])
+    config.type = "Chase"
+    config.direction = "Center"
+    config.spaceBetweenPixels = 8
+    config.effectBetweenPixels = "Progression"
+    config.runData.speed = 1
+    test_zone = controller.zone_names[0]
+    controller.apply_pattern_config(config, [test_zone])
+    state = controller.get_zone_state(test_zone)
+    assert state.is_on
+    assert state.data is not None
+    assert state.data.colors == config.colors
+    assert state.data.type == config.type
+    assert state.data.direction == config.direction
+    assert state.data.spaceBetweenPixels == config.spaceBetweenPixels
+    assert state.data.effectBetweenPixels == config.effectBetweenPixels
+    assert state.data.runData.speed == config.runData.speed
+    assert state.data.colors == config.colors
+    controller.apply_pattern_config(config)
+    for state in controller.get_zone_states().values():
+        assert state.is_on
+        assert state.data is not None
+        assert state.data.colors == config.colors
+        assert state.data.type == config.type
+        assert state.data.direction == config.direction
+        assert state.data.spaceBetweenPixels == config.spaceBetweenPixels
+        assert state.data.effectBetweenPixels == config.effectBetweenPixels
+        assert state.data.runData.speed == config.runData.speed
+        assert state.data.colors == config.colors

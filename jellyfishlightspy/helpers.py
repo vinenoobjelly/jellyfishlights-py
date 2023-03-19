@@ -4,6 +4,7 @@ from typing import Type, Tuple, List, Dict, Any, Optional
 from threading import Event
 from .model import RunConfig, PatternConfig, State, Pattern, PortMapping, ZoneConfig
 from .requests import SetPatternConfigRequest
+from .const import VALID_TYPES, VALID_DIRECTIONS, VALID_EFFECTS_BETWEEN_PIXELS, VALID_EFFECTS
 
 class JellyFishException(Exception):
     """An exception raised when interacting with the jellyfishlights-py module"""
@@ -67,14 +68,56 @@ def validate_zones(zones: List[str], valid_zones: List[str]) -> List[str]:
     invalid_zones = [zone for zone in zones if zone not in valid_zones]
     if len(invalid_zones) == 0:
         return zones
-    raise JellyFishException(f"Zone name(s) {invalid_zones} are invalid")
+    raise JellyFishException(f"Zone name(s) {invalid_zones} are invalid (valid values are {valid_zones})")
 
-def validate_patterns(patterns: List[str], valid_patterns: List[str]) -> str:
+def validate_patterns(patterns: List[str], valid_patterns: List[str]) -> List[str]:
     """Validates pattern values (must be in the list of values recieved from the controller)"""
     invalid_patterns = [pattern for pattern in patterns if pattern not in valid_patterns]
     if len(invalid_patterns) == 0:
         return patterns
     raise JellyFishException(f"Pattern name(s) {invalid_patterns} are invalid")
+
+def validate_pattern_config(config: PatternConfig, valid_zones: List[str]) -> PatternConfig:
+    """Validates pattern configuration values"""
+    if type(config.colors) is not list or not all((i is not None and type(i) is int and 0 <= i <= 255) for i in config.colors):
+        raise JellyFishException(f"PatternConfig.colors value {config.colors} is invalid (must be a list of integers between 0 and 255)")
+    if len(config.colors) % 3 != 0:
+        raise JellyFishException(f"PatternConfig.colors value {config.colors} is invalid (length must be a multiple of 3)")
+    if type(config.colorPos) is not list or not all(type(i) is int for i in config.colorPos):
+        raise JellyFishException(f"PatternConfig.colorPos value {config.colors} is invalid (must be a list of integers)")
+    if config.type not in VALID_TYPES:
+        raise JellyFishException(f"PatternConfig.type value '{config.type}' is invalid (valid values are {VALID_TYPES})")
+    if config.direction and config.direction not in VALID_DIRECTIONS: #TODO: Only used if type is multi-paint. Warning message?
+        raise JellyFishException(f"PatternConfig.direction value '{config.direction}' is invalid (valid values are {VALID_DIRECTIONS})")
+    if type(config.spaceBetweenPixels) is not int:
+        raise JellyFishException(f"PatternConfig.spaceBetweenPixels value '{config.spaceBetweenPixels}' is invalid (must be an integer)")
+    if type(config.numOfLeds) is not int: #TODO: Only used if type is Stacker. Warning message?
+        raise JellyFishException(f"PatternConfig.numOfLeds value '{config.numOfLeds}' is invalid (must be an integer)")
+    if type(config.skip) is not int: #TODO: Only used if type is Chase or Stacker. Warning message?
+        raise JellyFishException(f"PatternConfig.skip value '{config.skip}' is invalid (must be an integer)")
+    if config.effectBetweenPixels not in VALID_EFFECTS_BETWEEN_PIXELS:
+        raise JellyFishException(f"PatternConfig.effectBetweenPixels value '{config.effectBetweenPixels}' is invalid (valid values are {VALID_EFFECTS_BETWEEN_PIXELS})")
+    if type(config.cursor) is not int:
+        raise JellyFishException(f"PatternConfig.cursor value '{config.cursor}' is invalid (must be an integer)")
+    #TODO: config.ledOnPos?
+    if config.soffitZone and config.soffitZone not in valid_zones:
+        raise JellyFishException(f"PatternConfig.soffitZone value '{config.soffitZone}' is invalid (valid values are {valid_zones}")
+    if config.runData:
+        validate_run_config(config.runData)
+    return config
+
+def validate_run_config(config: RunConfig) -> RunConfig:
+    """Validates run configuration values"""
+    if type(config.speed) is not int:
+        raise JellyFishException(f"RunConfig.speed value '{config.speed}' is invalid (must be an integer)")
+    if type(config.brightness) is not int or config.brightness < 0 or config.brightness > 100:
+        raise JellyFishException(f"RunConfig.brightness value {config.brightness} is invalid (but be an integer between 0 and 100)")
+    if config.effect not in VALID_EFFECTS:
+        raise JellyFishException(f"RunConfig.effect value '{config.effect}' is invalid (valid values are {VALID_EFFECTS})")
+    if type(config.effectValue) is not int:
+        raise JellyFishException(f"RunConfig.effectValue value '{config.effectValue}' is invalid (must be an integer)")
+    if type(config.rgbAdj) is not list or len(config.rgbAdj) != 3 or not all((i is not None and type(i) is int and 0 <= i <= 255) for i in config.rgbAdj):
+        raise JellyFishException(f"RunConfig.rgbAdj value {config.rgbAdj} is invalid (must be a list of three integers between 0 and 255)")
 
 def _serialize_data_attributes(obj: dict) -> dict:
     """

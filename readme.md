@@ -15,9 +15,10 @@ To install:
   - Preset patterns and their configurations
   - Zone states
 - Turn zones on and off
-- Play a preset pattern
+- Activate a preset pattern
 - Set lights to a solid color with brightness control
 - Set any individual lights you want with brightness control
+- Activate a custom pattern configuration
 
 ## Example
 
@@ -68,8 +69,17 @@ jfc.turn_off()
 jfc.turn_on(['front-zone'])
 
 # Retrieve a pattern configuration
-print(jfc.get_pattern_config("Colors/Green"))
+config = jfc.get_pattern_config("Colors/Green")
+print(config)
 
+# Customize the pattern configuration and run it on the 'front-zone' zone
+config.colors.extend([(0, 0, 0)])
+config.type = "Chase"
+config.direction = "Center"
+config.spaceBetweenPixels = 8
+config.effectBetweenPixels = "Progression"
+config.runData.speed = 1
+jfc.apply_pattern_config(config, ["front-zone"])
 ```
 
 ## Contributing

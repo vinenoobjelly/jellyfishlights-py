@@ -1,4 +1,5 @@
 from jellyfishlightspy.model import Pattern, ZoneConfig, PortMapping, State, PatternConfig
+from jellyfishlightspy.helpers import validate_pattern_config
 
 def test_get_patterns(controller):
     patterns = controller.patterns
@@ -38,3 +39,9 @@ def test_get_pattern_configs(controller, helpers):
     for pattern, config in configs.items():
         assert pattern in patterns
         assert isinstance(config, PatternConfig)
+
+def test_validate_pattern_configs(controller):
+    configs = controller.pattern_configs.values()
+    zones = controller.zone_names
+    for config in configs:
+        validate_pattern_config(config, zones)
