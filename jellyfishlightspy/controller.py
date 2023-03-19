@@ -68,14 +68,14 @@ class JellyFishController:
     @property
     def pattern_configs(self) -> Dict[str, PatternConfig]:
         """The current pattern configurations, excluding folders (returns cached data if available)"""
-        if len(self.__ws_monitor.pattern_configs) == 0:
+        if len(self.__ws_monitor.pattern_configs) != len(self.patterns):
             return self.get_pattern_configs()
         return self.__ws_monitor.pattern_configs
 
     @property
     def zone_states(self) -> Dict[str, State]:
         """The state of each zone (returns cached data if available)"""
-        if len(self.__ws_monitor.zone_states) == 0:
+        if len(self.__ws_monitor.zone_states) != len(self.zones):
             return self.get_zone_states()
         return self.__ws_monitor.zone_states
 
@@ -146,6 +146,8 @@ class JellyFishController:
     def get_pattern_configs(self, patterns: List[str] = None, timeout: Optional[float] = DEFAULT_TIMEOUT) -> List[PatternConfig]:
         """Retrieves the configurations for the specified patterns (or all patterns if not provided) from the controller and caches the data"""
         try:
+            if not patterns:
+                self.__ws_monitor.pattern_configs.clear() # Refresh all cached data
             patterns = validate_patterns(patterns, self.pattern_names) if patterns else self.pattern_names
             args = []
             for pattern in patterns:
@@ -166,6 +168,8 @@ class JellyFishController:
     def get_zone_states(self, zones: List[str] = None, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, State]:
         """Retrieves the current state of the specified zones (or all zones if not provided) from the controller and caches the data"""
         try:
+            if not zones:
+                self.__ws_monitor.zone_states.clear() # Refresh all cached data
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             self.__send(GetRequest(STATE_DATA, *zones))
             self.__ws_monitor.await_zone_state_data(zones, timeout)

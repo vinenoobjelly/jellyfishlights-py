@@ -18,7 +18,6 @@ def test_turn_on_off_all_zones(controller):
     controller.turn_off()
     assert all(not state.is_on for state in controller.get_zone_states().values())
 
-# TODO: Figure out why the zone state is inconsistent - sometimes -1, sometimes 3
 def test_apply_light_string(controller):
     zone = controller.zone_names[0]
     controller.apply_light_string([(255, 255, 255), (255, 0, 0), (0, 255, 0) ,(0, 0, 255)], 55, [zone])

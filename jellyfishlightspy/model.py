@@ -51,7 +51,6 @@ class State(ModelBase):
 
     @property
     def is_on(self) -> bool:
-        # TODO: Figure out what -1 means to validate this logic
         return self.state != 0
 
 class Pattern(ModelBase):
