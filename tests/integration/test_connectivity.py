@@ -5,16 +5,16 @@ from jellyfishlightspy import JellyFishController, JellyFishException
 def test_connect(controller_host):
     jfc = JellyFishController(controller_host)
     with pytest.raises(JellyFishException) as e:
-        jfc.patterns
+        jfc.pattern_list
         assert "Not connected" in str(e)
     jfc.connect()
     assert jfc.connected
-    assert len(jfc.patterns) > 0
+    assert len(jfc.pattern_list) > 0
     jfc.disconnect()
     assert not jfc.connected
-    assert len(jfc.patterns) > 0 # now uses cached results
+    assert len(jfc.pattern_list) > 0 # now uses cached results
     with pytest.raises(JellyFishException) as e:
-        jfc.get_patterns()
+        jfc.get_pattern_list()
         assert "Not connected" in str(e)
 
 def test_bad_host():

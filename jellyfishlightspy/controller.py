@@ -7,7 +7,7 @@ import json
 import time
 from typing import Dict, List, Tuple, Optional, Any
 from threading import Thread, Lock
-from .const import LOGGER, ZONE_DATA, PATTERN_DATA, PATTERN_CONFIG_DATA, STATE_DATA, DEFAULT_TIMEOUT, DELETE_PATTERN_DATA
+from .const import LOGGER, ZONE_CONFIG_DATA, PATTERN_LIST_DATA, PATTERN_CONFIG_DATA, ZONE_STATE_DATA, DEFAULT_TIMEOUT, DELETE_PATTERN_DATA
 from .model import Pattern, RunConfig, PatternConfig, State, ZoneConfig
 from .requests import GetRequest, SetStateRequest, SetPatternConfigRequest, DeletePatternRequest
 from .helpers import (
@@ -46,33 +46,33 @@ class JellyFishController:
         return self.__ws_monitor.connected
 
     @property
-    def zones(self) -> Dict[str, ZoneConfig]:
+    def zone_configs(self) -> Dict[str, ZoneConfig]:
         """The current zones and their configuration (returns cached data if available)"""
-        if len(self.__ws_monitor.zones) == 0:
-            return self.get_zones()
-        return self.__ws_monitor.zones
+        if len(self.__ws_monitor.zone_configs) == 0:
+            return self.get_zone_configs()
+        return self.__ws_monitor.zone_configs
 
     @property
     def zone_names(self) -> List[str]:
         """The current zone names (returns cached data if available)"""
-        return list(self.zones)
+        return list(self.zone_configs)
 
     @property
-    def patterns(self) -> List[Pattern]:
+    def pattern_list(self) -> List[Pattern]:
         """The list of preset patterns, including folders (returns cached data if available)"""
-        if len(self.__ws_monitor.patterns) == 0:
-            return self.get_patterns()
-        return self.__ws_monitor.patterns
+        if len(self.__ws_monitor.pattern_list) == 0:
+            return self.get_pattern_list()
+        return self.__ws_monitor.pattern_list
 
     @property
     def pattern_names(self) -> List[str]:
         """The current pattern names, excluding folders (returns cached data if available)"""
-        return [str(p) for p in self.patterns if not p.is_folder]
+        return [str(p) for p in self.pattern_list if not p.is_folder]
 
     @property
     def pattern_configs(self) -> Dict[str, PatternConfig]:
         """The current pattern configurations, excluding folders (returns cached data if available)"""
-        if len(self.__ws_monitor.pattern_configs) != len(self.patterns):
+        if len(self.__ws_monitor.pattern_configs) != len(self.pattern_list):
             return self.get_pattern_configs()
         return self.__ws_monitor.pattern_configs
 
@@ -121,23 +121,23 @@ class JellyFishController:
         LOGGER.debug("Sending: %s", msg)
         self.__ws.send(msg)
 
-    def get_zones(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, ZoneConfig]:
+    def get_zone_configs(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, ZoneConfig]:
         """Retrieves the list of current zones and their configuration from the controller and caches the data"""
         try:
-            self.__send(GetRequest(ZONE_DATA))
-            self.__ws_monitor.await_zone_data(timeout)
-            return self.__ws_monitor.zones
+            self.__send(GetRequest(ZONE_CONFIG_DATA))
+            self.__ws_monitor.await_zone_config_data(timeout)
+            return self.__ws_monitor.zone_configs
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException("Error encountered while retrieving zone data") from e
 
-    def get_patterns(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> List[Pattern]:
+    def get_pattern_list(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> List[Pattern]:
         """Retrieves the list of preset patterns from the controller and caches the data"""
         try:
-            self.__send(GetRequest(PATTERN_DATA))
-            self.__ws_monitor.await_pattern_data(timeout)
-            return self.__ws_monitor.patterns
+            self.__send(GetRequest(PATTERN_LIST_DATA))
+            self.__ws_monitor.await_pattern_list_data(timeout)
+            return self.__ws_monitor.pattern_list
         except JellyFishException:
             raise
         except Exception as e:
@@ -175,7 +175,7 @@ class JellyFishController:
             if not zones:
                 self.__ws_monitor.zone_states.clear() # Refresh all cached data
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
-            self.__send(GetRequest(STATE_DATA, *zones))
+            self.__send(GetRequest(ZONE_STATE_DATA, *zones))
             self.__ws_monitor.await_zone_state_data(zones, timeout)
             return self.__ws_monitor.zone_states
         except JellyFishException:
@@ -187,10 +187,7 @@ class JellyFishController:
         """Convenience function that turns zones on or off"""
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
-            req = SetStateRequest(
-                state = int(on),
-                zoneName = zones
-            )
+            req = SetStateRequest(state = int(on), zoneName = zones)
             self.__send(req)
             if sync:
                 self.__ws_monitor.await_zone_state_data(zones, timeout)
@@ -291,7 +288,7 @@ class JellyFishController:
         """Creates or updates a pattern file"""
         try:
             validate_pattern_config(config, self.zone_names)
-            pattern = Pattern.from_str(pattern) if pattern not in self.pattern_names else next(p for p in self.patterns if str(p) == pattern)
+            pattern = Pattern.from_str(pattern) if pattern not in self.pattern_names else next(p for p in self.pattern_list if str(p) == pattern)
             if pattern.readOnly:
                 raise JellyFishException(f"Cannot update pattern '{pattern}' because it is read only")
             req = SetPatternConfigRequest(pattern = pattern, jsonData = config)
@@ -306,8 +303,10 @@ class JellyFishController:
     def delete_pattern(self, pattern: str, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
         """Deletes a pattern file or folder"""
         try:
-            patterns = self.get_patterns()
-            pattern = next(p for p in patterns if str(p) == pattern)
+            patterns = self.get_pattern_list()
+            pattern = next((p for p in patterns if str(p) == pattern), None)
+            if not pattern:
+                raise JellyFishException(f"Cannot delete pattern '{str(pattern)}' because it does not exist")
             if pattern.readOnly:
                 raise JellyFishException(f"Cannot delete pattern '{str(pattern)}' because it is read only")
             req = DeletePatternRequest(pattern)
@@ -324,21 +323,21 @@ class WebSocketMonitor:
 
     def __init__(self, address: str):
         self.__address = address
-        self.__zones: Dict[str, ZoneConfig] = {}
-        self.__patterns: List[Pattern] = []
+        self.__zone_configs: Dict[str, ZoneConfig] = {}
         self.__zone_states: Dict[str, State] = {}
+        self.__pattern_list: List[Pattern] = []
         self.__pattern_configs: Dict[str, PatternConfig] = {}
         self.__connected: TimelyEvent = TimelyEvent()
         self.__events = {
-            ZONE_DATA: TimelyEvent(),
-            PATTERN_DATA: TimelyEvent(),
-            STATE_DATA: {},
+            ZONE_CONFIG_DATA: TimelyEvent(),
+            PATTERN_LIST_DATA: TimelyEvent(),
+            ZONE_STATE_DATA: {},
             PATTERN_CONFIG_DATA: {},
         }
         self.__locks = {
-            ZONE_DATA: Lock(),
-            PATTERN_DATA: Lock(),
-            STATE_DATA: Lock(),
+            ZONE_CONFIG_DATA: Lock(),
+            PATTERN_LIST_DATA: Lock(),
+            ZONE_STATE_DATA: Lock(),
             PATTERN_CONFIG_DATA: Lock(),
         }
 
@@ -363,16 +362,16 @@ class WebSocketMonitor:
         return self.__connected.is_set()
 
     @property
-    def zones(self) -> Dict[str, ZoneConfig]:
+    def zone_configs(self) -> Dict[str, ZoneConfig]:
         """The current zones and their configuration. Ensures thread safe access via Locks"""
-        with self.__locks[ZONE_DATA]:
-            return self.__zones
+        with self.__locks[ZONE_CONFIG_DATA]:
+            return self.__zone_configs
 
     @property
-    def patterns(self) -> List[Pattern]:
+    def pattern_list(self) -> List[Pattern]:
         """The list of preset patterns currently available. Ensures thread safe access via Locks"""
-        with self.__locks[PATTERN_DATA]:
-            return self.__patterns
+        with self.__locks[PATTERN_LIST_DATA]:
+            return self.__pattern_list
 
     @property
     def pattern_configs(self) -> Dict[str, PatternConfig]:
@@ -383,7 +382,7 @@ class WebSocketMonitor:
     @property
     def zone_states(self) -> Dict[str, State]:
         """The state of each zone. Ensures thread safe access via Locks"""
-        with self.__locks[STATE_DATA]:
+        with self.__locks[ZONE_STATE_DATA]:
             return self.__zone_states
 
     def await_connection(self, timeout: float) -> None:
@@ -391,19 +390,19 @@ class WebSocketMonitor:
         if not self.__connected.wait(timeout=timeout):
             raise JellyFishException(f"Connection to controller at {self.__address} timed out")
 
-    def await_zone_data(self, timeout: float) -> None:
+    def await_zone_config_data(self, timeout: float) -> None:
         """Waits for new zone data to be received from the controller. Raises a JellyFishException upon timeout"""
-        if not self.__events[ZONE_DATA].wait(timeout=timeout):
-            raise JellyFishException("Request for zone data timed out")
+        if not self.__events[ZONE_CONFIG_DATA].wait(timeout=timeout):
+            raise JellyFishException("Request for zone config data timed out")
 
-    def await_pattern_data(self, timeout: float) -> None:
+    def await_pattern_list_data(self, timeout: float) -> None:
         """Waits for new pattern data to be received from the controller. Raises a JellyFishException upon timeout"""
-        if not self.__events[PATTERN_DATA].wait(timeout=timeout):
-            raise JellyFishException("Request for pattern data timed out")
+        if not self.__events[PATTERN_LIST_DATA].wait(timeout=timeout):
+            raise JellyFishException("Request for pattern list data timed out")
 
     def await_zone_state_data(self, zones: List[str], timeout: float) -> None:
         """Waits for new zone state data to be received from the controller. Raises a JellyFishException upon timeout"""
-        self.__await_multiple(STATE_DATA, zones, timeout, f"Request for the state data of zones '{zones}' timed out")
+        self.__await_multiple(ZONE_STATE_DATA, zones, timeout, f"Request for the state data of zones '{zones}' timed out")
 
     def await_pattern_config_data(self, pattern_names: List[str], timeout: float) -> None:
         """Waits for new pattern config data to be received from the controller. Raises a JellyFishException upon timeout"""
@@ -442,38 +441,38 @@ class WebSocketMonitor:
             # Check what type of data the message contains (zones, patterns, or states).
             # Then, update cached data in a thread safe manner (using locks) and trigger
             # events to let listeners/waiters know that new data has been received
-            if ZONE_DATA in data:
-                with self.__locks[ZONE_DATA]:
-                    self.__zones = data[ZONE_DATA]
-                self.__trigger_event(ZONE_DATA)
+            if ZONE_CONFIG_DATA in data:
+                with self.__locks[ZONE_CONFIG_DATA]:
+                    self.__zone_configs = data[ZONE_CONFIG_DATA]
+                self.__trigger_event(ZONE_CONFIG_DATA)
 
-            elif PATTERN_DATA in data:
-                with self.__locks[PATTERN_DATA]:
-                    self.__patterns = data[PATTERN_DATA]
-                self.__trigger_event(PATTERN_DATA)
+            elif PATTERN_LIST_DATA in data:
+                with self.__locks[PATTERN_LIST_DATA]:
+                    self.__pattern_list = data[PATTERN_LIST_DATA]
+                self.__trigger_event(PATTERN_LIST_DATA)
 
-            elif STATE_DATA in data:
-                state = data[STATE_DATA]
-                with self.__locks[STATE_DATA]:
+            elif ZONE_STATE_DATA in data:
+                state = data[ZONE_STATE_DATA]
+                with self.__locks[ZONE_STATE_DATA]:
                     for zone in state.zoneName:
                         self.__zone_states[zone] = state
-                        self.__trigger_event(STATE_DATA, zone)
+                        self.__trigger_event(ZONE_STATE_DATA, zone)
 
             elif PATTERN_CONFIG_DATA in data:
                 pattern_config = data[PATTERN_CONFIG_DATA]
                 pattern = Pattern(pattern_config["folders"], pattern_config["name"])
                 with self.__locks[PATTERN_CONFIG_DATA]:
                     self.__pattern_configs[str(pattern)] = pattern_config["jsonData"]
-                if not next((p for p in self.__patterns if str(p) == str(pattern)), False):
-                    with self.__locks[PATTERN_DATA]:
-                        self.__patterns.append(pattern)
-                    self.__trigger_event(PATTERN_DATA)
+                if not next((p for p in self.__pattern_list if str(p) == str(pattern)), False):
+                    with self.__locks[PATTERN_LIST_DATA]:
+                        self.__pattern_list.append(pattern)
+                    self.__trigger_event(PATTERN_LIST_DATA)
                 self.__trigger_event(PATTERN_CONFIG_DATA, str(pattern))
 
             elif DELETE_PATTERN_DATA in data:
                 pattern = data[DELETE_PATTERN_DATA]
-                with self.__locks[PATTERN_DATA]:
-                    self.__patterns = [p for p in self.__patterns if str(p) != str(pattern)]
+                with self.__locks[PATTERN_LIST_DATA]:
+                    self.__pattern_list = [p for p in self.__pattern_list if str(p) != str(pattern)]
                 if pattern.name:
                     with self.__locks[PATTERN_CONFIG_DATA]:
                         del self.__pattern_configs[str(pattern)]

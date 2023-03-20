@@ -14,13 +14,13 @@ def test_save_pattern(controller):
     controller.save_pattern(name, config)
     assert name in controller.pattern_names
     assert name in controller.pattern_configs
-    assert next((p for p in controller.get_patterns() if p.folders == pattern.folders and p.name == pattern.name), False)
+    assert next((p for p in controller.pattern_list if p.folders == pattern.folders and p.name == pattern.name), False)
     controller.apply_pattern(name)
     for state in controller.get_zone_states().values():
         assert state.file == name
     controller.delete_pattern(name)
     assert name not in controller.pattern_names
     assert name not in controller.pattern_configs
-    assert not next((p for p in controller.get_patterns() if p.folders == pattern.folders and p.name == pattern.name), False)
+    assert not next((p for p in controller.pattern_list if p.folders == pattern.folders and p.name == pattern.name), False)
     controller.delete_pattern("INT_TESTS/")
-    assert not next((p for p in controller.get_patterns() if p.folders == pattern.folders), False)
+    assert not next((p for p in controller.pattern_list if p.folders == pattern.folders), False)

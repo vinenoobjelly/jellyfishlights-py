@@ -2,13 +2,13 @@ from jellyfishlightspy.model import Pattern, ZoneConfig, PortMapping, State, Pat
 from jellyfishlightspy.helpers import validate_pattern_config
 
 def test_get_patterns(controller):
-    patterns = controller.patterns
+    patterns = controller.pattern_list
     assert patterns and len(patterns) > 0
     for pattern in patterns:
         assert type(pattern) is Pattern
 
 def test_get_zones(controller):
-    zones = controller.zones
+    zones = controller.zone_configs
     assert zones and len(zones) > 0
     assert len(controller.zone_names) == len(zones)
     for conf in zones.values():
