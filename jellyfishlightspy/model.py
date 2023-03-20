@@ -4,6 +4,12 @@ class ModelBase():
     def __repr__(self) -> str:
         return self.__class__.__name__ + str(vars(self))
 
+class ControllerVersion(ModelBase):
+    def __init__(self, ver: str, details: str, isUpdate: bool):
+        self.ver = ver
+        self.details = details
+        self.isUpdate = isUpdate
+
 class PortMapping(ModelBase):
     def __init__(self, ctlrName: str, phyEndIdx: int, phyPort: int, phyStartIdx: int, zoneRGBStartIdx: int):
         self.ctlrName = ctlrName
@@ -26,7 +32,7 @@ class RunConfig(ModelBase):
         self.rgbAdj = rgbAdj
 
 class PatternConfig(ModelBase):
-    def __init__(self, colors: List[int], type: str, runData: RunConfig, direction: str = "Center", spaceBetweenPixels: int = 2, numOfLeds: int = 1, skip: int = 2, effectBetweenPixels: str = "No Color Transform", colorPos: List[int] = [-1], cursor: int = -1, ledOnPos: Dict[str, int] = {}, soffitZone: str = "") -> None:
+    def __init__(self, colors: List[int], type: str, runData: RunConfig = None, direction: str = "Center", spaceBetweenPixels: int = 2, numOfLeds: int = 1, skip: int = 2, effectBetweenPixels: str = "No Color Transform", colorPos: List[int] = [-1], cursor: int = -1, ledOnPos: Dict[str, int] = {}, soffitZone: str = "") -> None:
         self.colors = colors
         self.type = type
         self.runData = runData
@@ -41,7 +47,7 @@ class PatternConfig(ModelBase):
         self.ledOnPos = ledOnPos
         self.soffitZone = soffitZone
 
-class State(ModelBase):
+class ZoneState(ModelBase):
     def __init__(self, state: int, zoneName: List[str], file: Optional[str] = None, id: Optional[str] = None, data: Optional[PatternConfig] = None):
         self.state = state
         self.zoneName = zoneName

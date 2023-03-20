@@ -7,8 +7,17 @@ import json
 import time
 from typing import Dict, List, Tuple, Optional, Any
 from threading import Thread, Lock
-from .const import LOGGER, ZONE_CONFIG_DATA, PATTERN_LIST_DATA, PATTERN_CONFIG_DATA, ZONE_STATE_DATA, DEFAULT_TIMEOUT, DELETE_PATTERN_DATA
-from .model import Pattern, RunConfig, PatternConfig, State, ZoneConfig
+from .const import (
+    LOGGER,
+    ZONE_CONFIG_DATA,
+    PATTERN_LIST_DATA,
+    PATTERN_CONFIG_DATA,
+    ZONE_STATE_DATA,
+    DEFAULT_TIMEOUT,
+    DELETE_PATTERN_DATA,
+    CONTROLLER_VERSION_DATA,
+)
+from .model import Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, ControllerVersion
 from .requests import GetRequest, SetStateRequest, SetPatternConfigRequest, DeletePatternRequest
 from .helpers import (
     JellyFishException,
@@ -46,6 +55,13 @@ class JellyFishController:
         return self.__ws_monitor.connected
 
     @property
+    def controller_version(self) -> ControllerVersion:
+        """The controller's version information (returns cached data if available)"""
+        if not self.__ws_monitor.controller_version:
+            return self.get_controller_version()
+        return self.__ws_monitor.controller_version
+
+    @property
     def zone_configs(self) -> Dict[str, ZoneConfig]:
         """The current zones and their configuration (returns cached data if available)"""
         if len(self.__ws_monitor.zone_configs) == 0:
@@ -77,7 +93,7 @@ class JellyFishController:
         return self.__ws_monitor.pattern_configs
 
     @property
-    def zone_states(self) -> Dict[str, State]:
+    def zone_states(self) -> Dict[str, ZoneState]:
         """The state of each zone (returns cached data if available)"""
         if len(self.__ws_monitor.zone_states) != len(self.zones):
             return self.get_zone_states()
@@ -120,6 +136,17 @@ class JellyFishController:
         msg = to_json(data)
         LOGGER.debug("Sending: %s", msg)
         self.__ws.send(msg)
+
+    def get_controller_version(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> ControllerVersion:
+        """Retrieves version information from the controller"""
+        try:
+            self.__send(GetRequest(CONTROLLER_VERSION_DATA))
+            self.__ws_monitor.await_controller_version_data(timeout)
+            return self.__ws_monitor.controller_version
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException("Error encountered while retrieving zone data") from e
 
     def get_zone_configs(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, ZoneConfig]:
         """Retrieves the list of current zones and their configuration from the controller and caches the data"""
@@ -165,11 +192,11 @@ class JellyFishController:
         except Exception as e:
             raise JellyFishException(f"Error encountered while retrieving config data for pattern(s) {patterns}") from e
 
-    def get_zone_state(self, zone: str, timeout: Optional[float] = DEFAULT_TIMEOUT) -> State:
+    def get_zone_state(self, zone: str, timeout: Optional[float] = DEFAULT_TIMEOUT) -> ZoneState:
         """Retrieves the current state of the specified zone from the controller and caches the data"""
         return self.get_zone_states([zone], timeout)[zone]
 
-    def get_zone_states(self, zones: List[str] = None, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, State]:
+    def get_zone_states(self, zones: List[str] = None, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, ZoneState]:
         """Retrieves the current state of the specified zones (or all zones if not provided) from the controller and caches the data"""
         try:
             if not zones:
@@ -323,18 +350,21 @@ class WebSocketMonitor:
 
     def __init__(self, address: str):
         self.__address = address
+        self.__controller_version: ControllerVersion = None
         self.__zone_configs: Dict[str, ZoneConfig] = {}
-        self.__zone_states: Dict[str, State] = {}
+        self.__zone_states: Dict[str, ZoneState] = {}
         self.__pattern_list: List[Pattern] = []
         self.__pattern_configs: Dict[str, PatternConfig] = {}
         self.__connected: TimelyEvent = TimelyEvent()
         self.__events = {
+            CONTROLLER_VERSION_DATA: TimelyEvent(),
             ZONE_CONFIG_DATA: TimelyEvent(),
             PATTERN_LIST_DATA: TimelyEvent(),
             ZONE_STATE_DATA: {},
             PATTERN_CONFIG_DATA: {},
         }
         self.__locks = {
+            CONTROLLER_VERSION_DATA: Lock(),
             ZONE_CONFIG_DATA: Lock(),
             PATTERN_LIST_DATA: Lock(),
             ZONE_STATE_DATA: Lock(),
@@ -344,7 +374,7 @@ class WebSocketMonitor:
     def __get_entity_event(self, data_key: str, entity_key: str) -> TimelyEvent:
         """
         Returns the TimelyEvent object that notifies when new entity data is available.
-        For example, new State data for a zone, or new PatternConfig data for a pattern.
+        For example, new state data for a zone, or new PatternConfig data for a pattern.
         """
         if entity_key not in self.__events[data_key]:
             self.__events[data_key][entity_key] = TimelyEvent()
@@ -360,6 +390,12 @@ class WebSocketMonitor:
     def connected(self) -> bool:
         """Returns true if the the web socket connection to the controller is established"""
         return self.__connected.is_set()
+
+    @property
+    def controller_version(self) -> ControllerVersion:
+        """The controllers version information"""
+        with self.__locks[CONTROLLER_VERSION_DATA]:
+            return self.__controller_version
 
     @property
     def zone_configs(self) -> Dict[str, ZoneConfig]:
@@ -380,7 +416,7 @@ class WebSocketMonitor:
             return self.__pattern_configs
 
     @property
-    def zone_states(self) -> Dict[str, State]:
+    def zone_states(self) -> Dict[str, ZoneState]:
         """The state of each zone. Ensures thread safe access via Locks"""
         with self.__locks[ZONE_STATE_DATA]:
             return self.__zone_states
@@ -389,6 +425,11 @@ class WebSocketMonitor:
         """Waits for a connection to the controler to be established. Raises a JellyFishException upon timeout"""
         if not self.__connected.wait(timeout=timeout):
             raise JellyFishException(f"Connection to controller at {self.__address} timed out")
+
+    def await_controller_version_data(self, timeout: float) -> None:
+        """Waits for new zone data to be received from the controller. Raises a JellyFishException upon timeout"""
+        if not self.__events[CONTROLLER_VERSION_DATA].wait(timeout=timeout):
+            raise JellyFishException("Request for controller version information timed out")
 
     def await_zone_config_data(self, timeout: float) -> None:
         """Waits for new zone data to be received from the controller. Raises a JellyFishException upon timeout"""
@@ -441,7 +482,12 @@ class WebSocketMonitor:
             # Check what type of data the message contains (zones, patterns, or states).
             # Then, update cached data in a thread safe manner (using locks) and trigger
             # events to let listeners/waiters know that new data has been received
-            if ZONE_CONFIG_DATA in data:
+            if CONTROLLER_VERSION_DATA in data:
+                with self.__locks[CONTROLLER_VERSION_DATA]:
+                    self.__controller_version = data[CONTROLLER_VERSION_DATA]
+                self.__trigger_event(CONTROLLER_VERSION_DATA)
+
+            elif ZONE_CONFIG_DATA in data:
                 with self.__locks[ZONE_CONFIG_DATA]:
                     self.__zone_configs = data[ZONE_CONFIG_DATA]
                 self.__trigger_event(ZONE_CONFIG_DATA)

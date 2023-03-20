@@ -11,6 +11,7 @@ To install:
 
 - Connect to a local JellyFish Lighting controller over websocket
 - Retrieve the following data:
+  - Controller version
   - Zone configuration
   - Preset patterns and their configurations
   - Zone states
@@ -33,6 +34,9 @@ logging.basicConfig(level = logging.DEBUG)
 # Create a controller object and connect
 jfc = JellyFishController('192.168.0.245') # hostname also works
 jfc.connect()
+
+# Print the controller's version information
+print(f"Version: {jfc.controller_version}")
 
 # Print the currently configured zones
 print(f"Zones: {jfc.zone_names}")

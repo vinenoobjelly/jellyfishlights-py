@@ -2,13 +2,21 @@ import pytest
 import json
 from typing import List
 from jellyfishlightspy.helpers import to_json, from_json
-from jellyfishlightspy.model import RunConfig, PatternConfig, State, Pattern, ZoneConfig, PortMapping
+from jellyfishlightspy.model import RunConfig, PatternConfig, ZoneState, Pattern, ZoneConfig, PortMapping, ControllerVersion
 from jellyfishlightspy.requests import GetRequest, SetStateRequest, SetPatternConfigRequest
 from tests.helpers import Helpers
 
 @pytest.fixture
 def helpers() -> Helpers:
     return Helpers
+
+@pytest.fixture
+def cv_obj() -> ControllerVersion:
+    return ControllerVersion("test-ver", "test-details", True)
+
+@pytest.fixture
+def cv_json() -> str:
+    return '{"ver": "test-ver", "details": "test-details", "isUpdate": true}'
 
 @pytest.fixture
 def rc_obj() -> RunConfig:
@@ -27,8 +35,8 @@ def pc_json(rc_json) -> str:
     return '{"colors": [0, 1, 2, 3, 4, 5], "type": "test-type", "runData": ' + rc_json + ', "direction": "test-direction", "spaceBetweenPixels": 5, "numOfLeds": 6, "skip": 7, "effectBetweenPixels": "test-effect-between-pixels", "colorPos": [8, 9, 10], "cursor": 11, "ledOnPos": {"0": [], "1": [1]}, "soffitZone": "test-zone-1"}'
 
 @pytest.fixture
-def s_obj(pc_obj) -> State:
-    return State(state = 1, zoneName = ["test-zone-1", "test-zone-2"], file = "test-file", id = "test-id", data = pc_obj)
+def s_obj(pc_obj) -> ZoneState:
+    return ZoneState(state = 1, zoneName = ["test-zone-1", "test-zone-2"], file = "test-file", id = "test-id", data = pc_obj)
 
 @pytest.fixture
 def s_json(pc_json) -> str:

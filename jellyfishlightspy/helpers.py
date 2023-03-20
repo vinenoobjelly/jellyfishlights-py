@@ -2,7 +2,7 @@ import json
 import time
 from typing import Type, Tuple, List, Dict, Any, Optional
 from threading import Event
-from .model import RunConfig, PatternConfig, State, Pattern, PortMapping, ZoneConfig
+from .model import RunConfig, PatternConfig, ZoneState, Pattern, PortMapping, ZoneConfig, ControllerVersion
 from .requests import SetPatternConfigRequest
 from .const import VALID_TYPES, VALID_DIRECTIONS, VALID_EFFECTS_BETWEEN_PIXELS, VALID_EFFECTS
 
@@ -121,7 +121,7 @@ def validate_run_config(config: RunConfig) -> RunConfig:
 
 def _serialize_data_attributes(obj: dict) -> dict:
     """
-    Special handling for State.data and SetPatternConfigRequest.patternFileData.jsonData
+    Special handling for ZoneState.data and SetPatternConfigRequest.patternFileData.jsonData
     because the API requires an escaped JSON string instead of normal JSON
     """
     obj = obj.copy()
@@ -158,12 +158,14 @@ def _object_hook(data):
             data[attr] = json.loads(data[attr], object_hook = _object_hook)
 
     # Instantiate the appropriate objects (vs. plain dicts)
+    if "ver" in data:
+        return ControllerVersion(**data)
     if "speed" in data:
         return RunConfig(**data)
     if "colors" in data:
         return PatternConfig(**data)
     if "state" in data:
-        return State(**data)
+        return ZoneState(**data)
     if "folders" in data and "jsonData" not in data:
         return Pattern(**data)
     if "ctlrName" in data:

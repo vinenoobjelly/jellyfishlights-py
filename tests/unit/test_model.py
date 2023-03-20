@@ -1,6 +1,10 @@
 import json
-from jellyfishlightspy.model import RunConfig, PatternConfig, State, Pattern, PortMapping, ZoneConfig
+from jellyfishlightspy.model import RunConfig, PatternConfig, ZoneState, Pattern, PortMapping, ZoneConfig, ControllerVersion
 from jellyfishlightspy.helpers import to_json, from_json
+
+def test_controller_version(helpers, cv_obj, cv_json):
+    o = helpers.assert_marshalling_works(cv_obj, cv_json)
+    assert isinstance(o, ControllerVersion)
 
 def test_run_config(helpers, rc_obj, rc_json):
     o = helpers.assert_marshalling_works(rc_obj, rc_json)
@@ -13,12 +17,12 @@ def test_pattern_config(helpers, pc_obj, pc_json):
 
 def test_state(helpers, s_obj, s_json):
     o = helpers.assert_marshalling_works(s_obj, s_json)
-    assert isinstance(o, State)
+    assert isinstance(o, ZoneState)
     assert isinstance(o.data, PatternConfig)
     assert isinstance(o.data.runData, RunConfig)
 
 def test_state_is_on():
-    sd = State(1, [])
+    sd = ZoneState(1, [])
     for i in range(-1, 4):
         sd.state = i
         assert sd.is_on == False if i == 0 else True

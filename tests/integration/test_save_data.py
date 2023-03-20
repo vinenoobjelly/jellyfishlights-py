@@ -1,7 +1,8 @@
 import pytest
 from jellyfishlightspy.model import Pattern
+from jellyfishlightspy.helpers import JellyFishException
 
-def test_save_pattern(controller):
+def test_save_and_delete_pattern(controller):
     config = controller.get_pattern_config("Colors/Blue")
     config.colors.extend([0, 0, 0])
     config.type = "Chase"
@@ -22,5 +23,9 @@ def test_save_pattern(controller):
     assert name not in controller.pattern_names
     assert name not in controller.pattern_configs
     assert not next((p for p in controller.pattern_list if p.folders == pattern.folders and p.name == pattern.name), False)
+    with pytest.raises(JellyFishException):
+        controller.delete_pattern(name)
     controller.delete_pattern("INT_TESTS/")
     assert not next((p for p in controller.pattern_list if p.folders == pattern.folders), False)
+    with pytest.raises(JellyFishException):
+        controller.delete_pattern("INT_TESTS/")

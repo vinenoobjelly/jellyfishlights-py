@@ -1,6 +1,6 @@
 from typing import List, Optional
 from types import SimpleNamespace
-from .model import State, PatternConfig, Pattern
+from .model import ZoneState, PatternConfig, Pattern
 
 class GetRequest:
     def __init__(self, *args):
@@ -10,7 +10,7 @@ class GetRequest:
 class SetStateRequest:
     def __init__(self, state: int, zoneName: List[str], file: str = "", id: str = "", data: Optional[PatternConfig] = None):
         self.cmd = 'toCtlrSet'
-        self.runPattern = State(state = state, zoneName = zoneName, file = file, id = id, data = data)
+        self.runPattern = ZoneState(state = state, zoneName = zoneName, file = file, id = id, data = data)
 
 class SetPatternConfigRequest:
     def __init__(self, pattern: Pattern, jsonData: PatternConfig):
