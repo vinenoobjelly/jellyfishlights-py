@@ -19,6 +19,7 @@ To install:
 - Set lights to a solid color with brightness control
 - Set any individual lights you want with brightness control
 - Activate a custom pattern configuration
+- Create, update, and delete custom pattern configurations
 
 ## Example
 
@@ -69,7 +70,7 @@ jfc.turn_off()
 jfc.turn_on(['front-zone'])
 
 # Retrieve a pattern configuration
-config = jfc.get_pattern_config("Colors/Green")
+config = jfc.get_pattern_config("Colors/Blue")
 print(config)
 
 # Customize the pattern configuration and run it on the 'front-zone' zone
@@ -80,6 +81,14 @@ config.spaceBetweenPixels = 8
 config.effectBetweenPixels = "Progression"
 config.runData.speed = 1
 jfc.apply_pattern_config(config, ["front-zone"])
+
+# Save your new pattern to a file to easily run later
+# Note: you can also update existing patterns this way, if they're editable.
+# If the parent folder doesn't exist it will be created.
+jfc.save_pattern("Special Effects/Blue Waves", config)
+
+# Delete the pattern
+jfc.delete_pattern("Special Effects/Blue Waves")
 ```
 
 ## Contributing

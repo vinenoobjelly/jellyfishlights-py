@@ -164,7 +164,7 @@ def _object_hook(data):
         return PatternConfig(**data)
     if "state" in data:
         return State(**data)
-    if "readOnly" in data:
+    if "folders" in data and "jsonData" not in data:
         return Pattern(**data)
     if "ctlrName" in data:
         return PortMapping(**data)

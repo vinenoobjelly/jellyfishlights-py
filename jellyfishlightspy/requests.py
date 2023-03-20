@@ -20,3 +20,8 @@ class SetPatternConfigRequest:
             "name": pattern.name,
             "jsonData": jsonData
         }
+
+class DeletePatternRequest:
+    def __init__(self, pattern: Pattern):
+        self.cmd = 'toCtlrSet'
+        self.patternFileDelete = pattern

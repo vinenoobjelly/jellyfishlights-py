@@ -7,6 +7,7 @@ ZONE_DATA = "zones"
 PATTERN_DATA = "patternFileList"
 PATTERN_CONFIG_DATA = "patternFileData"
 STATE_DATA = "runPattern"
+DELETE_PATTERN_DATA = "patternFileDelete"
 
 VALID_TYPES = ["Color", "Chase", "Paint", "Stacker", "Sequence", "Multi-Paint", "Soffit"]
 VALID_DIRECTIONS = ["Left", "Center", "Right"]

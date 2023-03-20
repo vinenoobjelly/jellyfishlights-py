@@ -7,9 +7,9 @@ import json
 import time
 from typing import Dict, List, Tuple, Optional, Any
 from threading import Thread, Lock
-from .const import LOGGER, ZONE_DATA, PATTERN_DATA, PATTERN_CONFIG_DATA, STATE_DATA, DEFAULT_TIMEOUT
+from .const import LOGGER, ZONE_DATA, PATTERN_DATA, PATTERN_CONFIG_DATA, STATE_DATA, DEFAULT_TIMEOUT, DELETE_PATTERN_DATA
 from .model import Pattern, RunConfig, PatternConfig, State, ZoneConfig
-from .requests import GetRequest, SetStateRequest
+from .requests import GetRequest, SetStateRequest, SetPatternConfigRequest, DeletePatternRequest
 from .helpers import (
     JellyFishException,
     TimelyEvent,
@@ -36,6 +36,9 @@ class JellyFishController:
         self.__ws: websocket.WebSocketApp
         self.__ws_thread: Thread
         self.__ws_monitor = WebSocketMonitor(address)
+
+    def __repr__(self):
+        return self.__class__.__name__ + str({"address": self.address, "connected": self.connected})
 
     @property
     def connected(self) -> bool:
@@ -229,11 +232,7 @@ class JellyFishController:
             rc = RunConfig(speed = 0, brightness = brightness, effect = "No Effect", effectValue = 0, rgbAdj = [100, 100, 100])
             pc = PatternConfig(colors = colors, colorPos = colors_pos, runData = rc, type = "Soffit")
 
-            req = SetStateRequest(
-                state = 3,
-                zoneName = zones,
-                data = pc
-            )
+            req = SetStateRequest(state = 3, zoneName = zones, data = pc)
             self.__send(req)
             if sync:
                 self.__ws_monitor.await_zone_state_data(zones, timeout)
@@ -251,11 +250,7 @@ class JellyFishController:
             rc = RunConfig(speed = 10, brightness = brightness, effect = "No Effect", effectValue = 0, rgbAdj = [100, 100, 100])
             pc = PatternConfig(colors = [*rgb], type = "Color", skip = 1, direction = "Left", runData = rc)
 
-            req = SetStateRequest(
-                state = 1,
-                zoneName = zones,
-                data = pc
-            )
+            req = SetStateRequest(state = 1, zoneName = zones, data = pc)
             self.__send(req)
             if sync:
                 self.__ws_monitor.await_zone_state_data(zones, timeout)
@@ -269,11 +264,7 @@ class JellyFishController:
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             validate_patterns([pattern], self.pattern_names)
-            req = SetStateRequest(
-                state = 1,
-                zoneName = zones,
-                file = pattern
-            )
+            req = SetStateRequest(state = 1, zoneName = zones, file = pattern)
             self.__send(req)
             if sync:
                 self.__ws_monitor.await_zone_state_data(zones, timeout)
@@ -287,11 +278,7 @@ class JellyFishController:
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             validate_pattern_config(config, zones)
-            req = SetStateRequest(
-                state = 1,
-                zoneName = zones,
-                data = config
-            )
+            req = SetStateRequest(state = 1, zoneName = zones, data = config)
             self.__send(req)
             if sync:
                 self.__ws_monitor.await_zone_state_data(zones, timeout)
@@ -299,6 +286,39 @@ class JellyFishController:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while applying pattern config to zone(s) {zones}") from e
+
+    def save_pattern(self, pattern: str, config: PatternConfig, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
+        """Creates or updates a pattern file"""
+        try:
+            validate_pattern_config(config, self.zone_names)
+            pattern = Pattern.from_str(pattern) if pattern not in self.pattern_names else next(p for p in self.patterns if str(p) == pattern)
+            if pattern.readOnly:
+                raise JellyFishException(f"Cannot update pattern '{pattern}' because it is read only")
+            req = SetPatternConfigRequest(pattern = pattern, jsonData = config)
+            self.__send(req)
+            if sync:
+                self.__ws_monitor.await_pattern_config_data([str(pattern)], timeout)
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException(f"Error encountered while saving pattern '{pattern}' config: {config}") from e
+
+    def delete_pattern(self, pattern: str, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
+        """Deletes a pattern file or folder"""
+        try:
+            patterns = self.get_patterns()
+            pattern = next(p for p in patterns if str(p) == pattern)
+            if pattern.readOnly:
+                raise JellyFishException(f"Cannot delete pattern '{str(pattern)}' because it is read only")
+            req = DeletePatternRequest(pattern)
+            self.__send(req)
+            if sync:
+                self.__ws_monitor.await_pattern_config_data([str(pattern)], timeout)
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException(f"Error encountered while deleting pattern '{pattern}'") from e
+
 
 class WebSocketMonitor:
 
@@ -444,7 +464,21 @@ class WebSocketMonitor:
                 pattern = Pattern(pattern_config["folders"], pattern_config["name"])
                 with self.__locks[PATTERN_CONFIG_DATA]:
                     self.__pattern_configs[str(pattern)] = pattern_config["jsonData"]
+                if not next((p for p in self.__patterns if str(p) == str(pattern)), False):
+                    with self.__locks[PATTERN_DATA]:
+                        self.__patterns.append(pattern)
+                    self.__trigger_event(PATTERN_DATA)
                 self.__trigger_event(PATTERN_CONFIG_DATA, str(pattern))
+
+            elif DELETE_PATTERN_DATA in data:
+                pattern = data[DELETE_PATTERN_DATA]
+                with self.__locks[PATTERN_DATA]:
+                    self.__patterns = [p for p in self.__patterns if str(p) != str(pattern)]
+                if pattern.name:
+                    with self.__locks[PATTERN_CONFIG_DATA]:
+                        del self.__pattern_configs[str(pattern)]
+                self.__trigger_event(PATTERN_CONFIG_DATA, str(pattern))
+
         except Exception:
             LOGGER.exception("Error encountered while processing web socket message: '%s'", message)
 

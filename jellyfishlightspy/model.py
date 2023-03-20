@@ -2,7 +2,7 @@ from typing import Optional, List, Dict
 
 class ModelBase():
     def __repr__(self) -> str:
-        return str(vars(self))
+        return self.__class__.__name__ + str(vars(self))
 
 class PortMapping(ModelBase):
     def __init__(self, ctlrName: str, phyEndIdx: int, phyPort: int, phyStartIdx: int, zoneRGBStartIdx: int):
