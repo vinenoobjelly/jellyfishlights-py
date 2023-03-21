@@ -30,7 +30,7 @@ class TimelyEvent(Event):
         self.ts = time.perf_counter()
         Event.set(self)
 
-    def wait(self, timeout: Optional[float] = None, after_ts: Optional[float] = None) -> bool:
+    def wait(self, timeout: Optional[float]=None, after_ts: Optional[float]=None) -> bool:
         """
         Block until the internal flag is true.
 
@@ -48,7 +48,13 @@ class TimelyEvent(Event):
         """
         if after_ts and self.ts > after_ts:
             return True
-        return Event.wait(self, timeout = timeout)
+        return Event.wait(self, timeout=timeout)
+
+    def trigger(self) -> None:
+        """Sets and immediately clears the event"""
+        self.set()
+        self.clear()
+
 
 def validate_rgb(rgb: Tuple[int, int, int]) -> Tuple[int, int, int]:
     """Validates an RGB tuple (contains 3 valid intensity values)"""
@@ -128,7 +134,7 @@ def _serialize_data_attributes(obj: dict) -> dict:
     # Encode objects into strings where the API requires it
     for attr in ["data", "jsonData"]:
         if attr in obj:
-            obj[attr] = json.dumps(obj[attr], default = _default) if obj[attr] else ""
+            obj[attr] = json.dumps(obj[attr], default=_default) if obj[attr] else ""
     # Cover cases where these attributes are on a child dict (e.g. SetPatternConfigRequest)
     for subattr in list(obj):
         if isinstance(obj[subattr], dict):
@@ -147,7 +153,7 @@ def _default(obj):
 
 def to_json(obj: Any) -> str:
     """Serializes Python objects from this module to a JSON string compatible with the API"""
-    return json.dumps(obj, default = _default)
+    return json.dumps(obj, default=_default)
 
 def _object_hook(data):
     """Determines the object to instantiate based on its attributes"""
@@ -155,7 +161,7 @@ def _object_hook(data):
     # Decode escaped JSON strings that may exist within the plain JSON
     for attr in ["data", "jsonData"]:
         if (attr in data and data[attr] != ""):
-            data[attr] = json.loads(data[attr], object_hook = _object_hook)
+            data[attr]=json.loads(data[attr], object_hook=_object_hook)
 
     # Instantiate the appropriate objects (vs. plain dicts)
     if "ver" in data:
@@ -176,4 +182,9 @@ def _object_hook(data):
 
 def from_json(json_str: str):
     """Deserializes a JSON string from the API into Python objects from this module"""
-    return json.loads(json_str, object_hook = _object_hook)
+    return json.loads(json_str, object_hook=_object_hook)
+
+def copy(obj: Any) -> Any:
+    """Copies any serializable object within this library"""
+    #TODO: Pretty inefficient... find a less lazy way
+    return from_json(to_json(obj))

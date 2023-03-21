@@ -24,7 +24,7 @@ class ZoneConfig(ModelBase):
         self.portMap = portMap
 
 class RunConfig(ModelBase):
-    def __init__(self, speed: Optional[int], brightness: Optional[int], effect: Optional[str], effectValue: Optional[int], rgbAdj: Optional[List[int]]) -> None:
+    def __init__(self, speed: int=0, brightness: int=100, effect: str="No Effect", effectValue: int=0, rgbAdj: List[int]=[100, 100, 100]) -> None:
         self.speed = speed
         self.brightness = brightness
         self.effect = effect
@@ -32,9 +32,9 @@ class RunConfig(ModelBase):
         self.rgbAdj = rgbAdj
 
 class PatternConfig(ModelBase):
-    def __init__(self, colors: List[int], type: str, runData: RunConfig = None, direction: str = "Center", spaceBetweenPixels: int = 2, numOfLeds: int = 1, skip: int = 2, effectBetweenPixels: str = "No Color Transform", colorPos: List[int] = [-1], cursor: int = -1, ledOnPos: Dict[str, int] = {}, soffitZone: str = "") -> None:
-        self.colors = colors
+    def __init__(self, type: str, colors: List[int], runData: RunConfig=None, direction: str="Center", spaceBetweenPixels: int=2, numOfLeds: int=1, skip: int=2, effectBetweenPixels: str="No Color Transform", colorPos: List[int]=[-1], cursor: int=-1, ledOnPos: Dict[str, int]={}, soffitZone: str="") -> None:
         self.type = type
+        self.colors = colors
         self.runData = runData
         self.direction = direction
         self.spaceBetweenPixels = spaceBetweenPixels
@@ -48,7 +48,7 @@ class PatternConfig(ModelBase):
         self.soffitZone = soffitZone
 
 class ZoneState(ModelBase):
-    def __init__(self, state: int, zoneName: List[str], file: Optional[str] = None, id: Optional[str] = None, data: Optional[PatternConfig] = None):
+    def __init__(self, state: int, zoneName: List[str], file: Optional[str]=None, id: Optional[str]=None, data: Optional[PatternConfig]=None):
         self.state = state
         self.zoneName = zoneName
         self.file = file
@@ -60,7 +60,7 @@ class ZoneState(ModelBase):
         return self.state != 0
 
 class Pattern(ModelBase):
-    def __init__(self, folders: str, name: str, readOnly: Optional[bool] = False):
+    def __init__(self, folders: str, name: str, readOnly: Optional[bool]=False):
         self.folders = folders
         self.name = name
         self.readOnly = readOnly

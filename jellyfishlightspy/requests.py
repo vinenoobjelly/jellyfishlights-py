@@ -1,27 +1,62 @@
 from typing import List, Optional
 from types import SimpleNamespace
 from .model import ZoneState, PatternConfig, Pattern
+from .const import (
+    CONTROLLER_VERSION_DATA,
+    ZONE_CONFIG_DATA,
+    PATTERN_LIST_DATA,
+    PATTERN_CONFIG_DATA,
+    ZONE_STATE_DATA,
+)
 
 class GetRequest:
     def __init__(self, *args):
         self.cmd = 'toCtlrGet'
         self.get = [[*args]]
 
-class SetStateRequest:
-    def __init__(self, state: int, zoneName: List[str], file: str = "", id: str = "", data: Optional[PatternConfig] = None):
-        self.cmd = 'toCtlrSet'
-        self.runPattern = ZoneState(state = state, zoneName = zoneName, file = file, id = id, data = data)
+class GetControllerVersionRequest(GetRequest):
+    def __init__(self):
+        super().__init__(CONTROLLER_VERSION_DATA)
 
-class SetPatternConfigRequest:
-    def __init__(self, pattern: Pattern, jsonData: PatternConfig):
+class GetZoneConfigRequest(GetRequest):
+    def __init__(self):
+        super().__init__(ZONE_CONFIG_DATA)
+
+class GetPatternListRequest(GetRequest):
+    def __init__(self):
+        super().__init__(PATTERN_LIST_DATA)
+
+class GetPatternConfigRequest(GetRequest):
+    def __init__(self, patterns: List[str]):
+        args = []
+        for pattern in patterns:
+            pobj = Pattern.from_str(pattern)
+            args.extend([pobj.folders, pobj.name])
+        super().__init__(PATTERN_CONFIG_DATA, *args)
+
+class GetZoneStateRequest(GetRequest):
+    def __init__(self, zones: List[str]):
+        super().__init__(ZONE_STATE_DATA, *zones)
+
+class SetRequest:
+    def __init__(self):
         self.cmd = 'toCtlrSet'
+
+class SetZoneStateRequest(SetRequest):
+    def __init__(self, state: int, zoneName: List[str], file: str="", id: str="", data: Optional[PatternConfig]=None):
+        super().__init__()
+        self.runPattern = ZoneState(state=state, zoneName=zoneName, file=file, id=id, data=data)
+
+class SetPatternConfigRequest(SetRequest):
+    def __init__(self, pattern: Pattern, jsonData: PatternConfig):
+        super().__init__()
         self.patternFileData = {
             "folders": pattern.folders,
             "name": pattern.name,
             "jsonData": jsonData
         }
 
-class DeletePatternRequest:
+class DeletePatternRequest(SetRequest):
     def __init__(self, pattern: Pattern):
-        self.cmd = 'toCtlrSet'
+        super().__init__()
         self.patternFileDelete = pattern

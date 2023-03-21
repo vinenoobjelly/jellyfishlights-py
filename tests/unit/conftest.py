@@ -3,7 +3,7 @@ import json
 from typing import List
 from jellyfishlightspy.helpers import to_json, from_json
 from jellyfishlightspy.model import RunConfig, PatternConfig, ZoneState, Pattern, ZoneConfig, PortMapping, ControllerVersion
-from jellyfishlightspy.requests import GetRequest, SetStateRequest, SetPatternConfigRequest
+from jellyfishlightspy.requests import GetRequest, SetZoneStateRequest, SetPatternConfigRequest
 from tests.helpers import Helpers
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def cv_json() -> str:
 
 @pytest.fixture
 def rc_obj() -> RunConfig:
-    return RunConfig(speed = 20, brightness = 100, effect = "test-effect", effectValue = 1, rgbAdj = [2,3,4])
+    return RunConfig(speed=20, brightness=100, effect="test-effect", effectValue=1, rgbAdj=[2,3,4])
 
 @pytest.fixture
 def rc_json() -> str:
@@ -28,15 +28,15 @@ def rc_json() -> str:
 
 @pytest.fixture
 def pc_obj(rc_obj) -> PatternConfig:
-    return PatternConfig(colors = [0,1,2,3,4,5], type = "test-type", runData = rc_obj, direction = "test-direction", spaceBetweenPixels = 5, numOfLeds = 6, skip = 7, effectBetweenPixels = "test-effect-between-pixels", colorPos = [8, 9, 10], cursor = 11, ledOnPos = {"0": [], "1": [1]}, soffitZone = "test-zone-1")
+    return PatternConfig(type="test-type", colors=[0,1,2,3,4,5], runData=rc_obj, direction="test-direction", spaceBetweenPixels=5, numOfLeds=6, skip=7, effectBetweenPixels="test-effect-between-pixels", colorPos=[8, 9, 10], cursor=11, ledOnPos={"0": [], "1": [1]}, soffitZone="test-zone-1")
 
 @pytest.fixture
 def pc_json(rc_json) -> str:
-    return '{"colors": [0, 1, 2, 3, 4, 5], "type": "test-type", "runData": ' + rc_json + ', "direction": "test-direction", "spaceBetweenPixels": 5, "numOfLeds": 6, "skip": 7, "effectBetweenPixels": "test-effect-between-pixels", "colorPos": [8, 9, 10], "cursor": 11, "ledOnPos": {"0": [], "1": [1]}, "soffitZone": "test-zone-1"}'
+    return '{"type": "test-type", "colors": [0, 1, 2, 3, 4, 5], "runData": ' + rc_json + ', "direction": "test-direction", "spaceBetweenPixels": 5, "numOfLeds": 6, "skip": 7, "effectBetweenPixels": "test-effect-between-pixels", "colorPos": [8, 9, 10], "cursor": 11, "ledOnPos": {"0": [], "1": [1]}, "soffitZone": "test-zone-1"}'
 
 @pytest.fixture
 def s_obj(pc_obj) -> ZoneState:
-    return ZoneState(state = 1, zoneName = ["test-zone-1", "test-zone-2"], file = "test-file", id = "test-id", data = pc_obj)
+    return ZoneState(state=1, zoneName=["test-zone-1", "test-zone-2"], file="test-file", id="test-id", data=pc_obj)
 
 @pytest.fixture
 def s_json(pc_json) -> str:
@@ -66,8 +66,8 @@ def get_req_json() -> str:
     return '{"cmd": "toCtlrGet", "get": [["zones"]]}'
 
 @pytest.fixture
-def set_state_req_obj(pc_obj) -> SetStateRequest:
-    return SetStateRequest(1, ["test-zone-1", "test-zone-2"], file = "test-folder/test-name", id = "test-id", data = pc_obj)
+def set_state_req_obj(pc_obj) -> SetZoneStateRequest:
+    return SetZoneStateRequest(1, ["test-zone-1", "test-zone-2"], file="test-folder/test-name", id="test-id", data=pc_obj)
 
 @pytest.fixture
 def set_state_req_json(pc_json) -> str:
@@ -76,7 +76,7 @@ def set_state_req_json(pc_json) -> str:
 
 @pytest.fixture
 def set_pattern_config_req_obj(pc_obj) -> SetPatternConfigRequest:
-    return SetPatternConfigRequest(pattern = Pattern("test-folder-1", "test-name-1", True), jsonData = pc_obj)
+    return SetPatternConfigRequest(pattern=Pattern("test-folder-1", "test-name-1", True), jsonData=pc_obj)
 
 @pytest.fixture
 def set_pattern_config_req_json(pc_json) -> str:

@@ -1,34 +1,30 @@
 # https://medium.com/@joel.barmettler/how-to-upload-your-python-package-to-pypi-65edc5fe9c56
 #TODO: get rid of above once this is done
 
-import logging
 import websocket
-import json
-import time
 from typing import Dict, List, Tuple, Optional, Any
-from threading import Thread, Lock
-from .const import (
-    LOGGER,
-    ZONE_CONFIG_DATA,
-    PATTERN_LIST_DATA,
-    PATTERN_CONFIG_DATA,
-    ZONE_STATE_DATA,
-    DEFAULT_TIMEOUT,
-    DELETE_PATTERN_DATA,
-    CONTROLLER_VERSION_DATA,
-)
+from threading import Thread
+from .const import LOGGER, DEFAULT_TIMEOUT
 from .model import Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, ControllerVersion
-from .requests import GetRequest, SetStateRequest, SetPatternConfigRequest, DeletePatternRequest
+from .monitor import WebSocketMonitor
+from .requests import (
+    GetControllerVersionRequest,
+    GetZoneConfigRequest,
+    GetZoneStateRequest,
+    GetPatternListRequest,
+    GetPatternConfigRequest,
+    SetZoneStateRequest,
+    SetPatternConfigRequest,
+    DeletePatternRequest,
+)
 from .helpers import (
     JellyFishException,
-    TimelyEvent,
     validate_rgb,
     validate_brightness,
     validate_zones,
     validate_patterns,
     validate_pattern_config,
     to_json,
-    from_json
 )
 
 #TODO: adding and setting patterns, schedules, and zones
@@ -78,7 +74,7 @@ class JellyFishController:
         """The list of preset patterns, including folders (returns cached data if available)"""
         if len(self.__ws_monitor.pattern_list) == 0:
             return self.get_pattern_list()
-        return self.__ws_monitor.pattern_list
+        return list(self.__ws_monitor.pattern_list.values())
 
     @property
     def pattern_names(self) -> List[str]:
@@ -99,7 +95,7 @@ class JellyFishController:
             return self.get_zone_states()
         return self.__ws_monitor.zone_states
 
-    def connect(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> None:
+    def connect(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> None:
         """Establishes a connection to the JellyFish Lighting controller at the given address and begins listening for messages"""
         try:
             self.__ws = websocket.WebSocketApp(
@@ -117,7 +113,7 @@ class JellyFishController:
         except Exception as e:
             raise JellyFishException(f"Could not connect to controller at {self.address}") from e
 
-    def disconnect(self, timeout: Optional[float] = DEFAULT_TIMEOUT):
+    def disconnect(self, timeout: Optional[float]=DEFAULT_TIMEOUT):
         """Disconnects from the JellyFish Lighting controller"""
         try:
             self.__ws.close()
@@ -137,10 +133,10 @@ class JellyFishController:
         LOGGER.debug("Sending: %s", msg)
         self.__ws.send(msg)
 
-    def get_controller_version(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> ControllerVersion:
+    def get_controller_version(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> ControllerVersion:
         """Retrieves version information from the controller"""
         try:
-            self.__send(GetRequest(CONTROLLER_VERSION_DATA))
+            self.__send(GetControllerVersionRequest())
             self.__ws_monitor.await_controller_version_data(timeout)
             return self.__ws_monitor.controller_version
         except JellyFishException:
@@ -148,10 +144,10 @@ class JellyFishController:
         except Exception as e:
             raise JellyFishException("Error encountered while retrieving zone data") from e
 
-    def get_zone_configs(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, ZoneConfig]:
+    def get_zone_configs(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> Dict[str, ZoneConfig]:
         """Retrieves the list of current zones and their configuration from the controller and caches the data"""
         try:
-            self.__send(GetRequest(ZONE_CONFIG_DATA))
+            self.__send(GetZoneConfigRequest())
             self.__ws_monitor.await_zone_config_data(timeout)
             return self.__ws_monitor.zone_configs
         except JellyFishException:
@@ -159,51 +155,47 @@ class JellyFishController:
         except Exception as e:
             raise JellyFishException("Error encountered while retrieving zone data") from e
 
-    def get_pattern_list(self, timeout: Optional[float] = DEFAULT_TIMEOUT) -> List[Pattern]:
+    def get_pattern_list(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> List[Pattern]:
         """Retrieves the list of preset patterns from the controller and caches the data"""
         try:
-            self.__send(GetRequest(PATTERN_LIST_DATA))
+            self.__send(GetPatternListRequest())
             self.__ws_monitor.await_pattern_list_data(timeout)
-            return self.__ws_monitor.pattern_list
+            return list(self.__ws_monitor.pattern_list.values())
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException("Error encountered while retrieving pattern data") from e
 
-    def get_pattern_config(self, pattern: str, timeout: Optional[float] = DEFAULT_TIMEOUT) -> PatternConfig:
+    def get_pattern_config(self, pattern: str, timeout: Optional[float]=DEFAULT_TIMEOUT) -> PatternConfig:
         """Retrieves the configuration of the specified pattern from the controller and caches the data"""
         return self.get_pattern_configs([pattern], timeout)[pattern]
 
-    def get_pattern_configs(self, patterns: List[str] = None, timeout: Optional[float] = DEFAULT_TIMEOUT) -> List[PatternConfig]:
+    def get_pattern_configs(self, patterns: List[str]=None, timeout: Optional[float]=DEFAULT_TIMEOUT) -> Dict[str, PatternConfig]:
         """Retrieves the configurations for the specified patterns (or all patterns if not provided) from the controller and caches the data"""
         try:
             if not patterns:
                 self.__ws_monitor.pattern_configs.clear() # Refresh all cached data
             patterns = validate_patterns(patterns, self.pattern_names) if patterns else self.pattern_names
-            args = []
-            for pattern in patterns:
-                pobj = Pattern.from_str(pattern)
-                args.extend([pobj.folders, pobj.name])
-            self.__send(GetRequest(PATTERN_CONFIG_DATA, *args))
-            self.__ws_monitor.await_pattern_config_data(patterns, timeout)
+            self.__send(GetPatternConfigRequest(patterns))
+            self.__ws_monitor.await_pattern_config_data(timeout, patterns)
             return self.__ws_monitor.pattern_configs
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while retrieving config data for pattern(s) {patterns}") from e
 
-    def get_zone_state(self, zone: str, timeout: Optional[float] = DEFAULT_TIMEOUT) -> ZoneState:
+    def get_zone_state(self, zone: str, timeout: Optional[float]=DEFAULT_TIMEOUT) -> ZoneState:
         """Retrieves the current state of the specified zone from the controller and caches the data"""
         return self.get_zone_states([zone], timeout)[zone]
 
-    def get_zone_states(self, zones: List[str] = None, timeout: Optional[float] = DEFAULT_TIMEOUT) -> Dict[str, ZoneState]:
+    def get_zone_states(self, zones: List[str]=None, timeout: Optional[float]=DEFAULT_TIMEOUT) -> Dict[str, ZoneState]:
         """Retrieves the current state of the specified zones (or all zones if not provided) from the controller and caches the data"""
         try:
             if not zones:
                 self.__ws_monitor.zone_states.clear() # Refresh all cached data
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
-            self.__send(GetRequest(ZONE_STATE_DATA, *zones))
-            self.__ws_monitor.await_zone_state_data(zones, timeout)
+            self.__send(GetZoneStateRequest(zones))
+            self.__ws_monitor.await_zone_state_data(timeout, zones)
             return self.__ws_monitor.zone_states
         except JellyFishException:
             raise
@@ -214,33 +206,32 @@ class JellyFishController:
         """Convenience function that turns zones on or off"""
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
-            req = SetStateRequest(state = int(on), zoneName = zones)
-            self.__send(req)
+            self.__send(SetZoneStateRequest(state=int(on), zoneName=zones))
             if sync:
-                self.__ws_monitor.await_zone_state_data(zones, timeout)
+                self.__ws_monitor.await_zone_state_data(timeout, zones)
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while turning {'on' if on else 'off'} zone(s) {zones}") from e
 
-    def turn_on(self, zones: List[str] = None, sync: bool = True, timeout: float = DEFAULT_TIMEOUT) -> None:
+    def turn_on(self, zones: List[str]=None, sync: bool=True, timeout: float=DEFAULT_TIMEOUT) -> None:
         """
         Turns on the provided zone(s) (or all zones if not provided). If sync is set to True (the default),
         the function call will not return until a confirmation response is received from the controller or the request times out.
         """
         self.__turn_on_off(True, zones, sync, timeout)
 
-    def turn_off(self, zones: List[str] = None, sync: bool = True, timeout: float = DEFAULT_TIMEOUT) -> None:
+    def turn_off(self, zones: List[str]=None, sync: bool=True, timeout: float=DEFAULT_TIMEOUT) -> None:
         """
         Turns off the provided zone(s) (or all zones if not provided). If sync is set to True (the default),
         the function call will not return until a confirmation response is received from the controller or the request times out.
         """
         self.__turn_on_off(False, zones, sync, timeout)
 
-    def apply_light_string(self, light_string: List[Tuple[int, int, int]], brightness: int = 100, zones: List[str] = None, sync: bool = True, timeout: float = DEFAULT_TIMEOUT) -> None:
+    def apply_light_string(self, light_string: List[Tuple[int, int, int]], brightness: int=100, zones: List[str]=None, sync: bool=True, timeout: float=DEFAULT_TIMEOUT) -> None:
         """
         Sets lights in the provided zone(s) to a custom string of colors at the given brightness (or all zones
-        if not provided. Default brighness = 100%). If sync is set to True (the default), the function call will
+        if not provided. Default brighness=100%). If sync is set to True (the default), the function call will
         not return until a confirmation response is received from the controller or the request times out.
         """
         try:
@@ -252,82 +243,72 @@ class JellyFishController:
                 validate_rgb(rgb)
                 colors.extend(rgb)
                 colors_pos.append(i)
-
-            rc = RunConfig(speed = 0, brightness = brightness, effect = "No Effect", effectValue = 0, rgbAdj = [100, 100, 100])
-            pc = PatternConfig(colors = colors, colorPos = colors_pos, runData = rc, type = "Soffit")
-
-            req = SetStateRequest(state = 3, zoneName = zones, data = pc)
-            self.__send(req)
+            config = PatternConfig(type="Soffit", colors=colors, colorPos=colors_pos, runData=RunConfig(brightness=brightness))
+            self.__send(SetZoneStateRequest(state=3, zoneName=zones, data=config))
             if sync:
-                self.__ws_monitor.await_zone_state_data(zones, timeout)
+                self.__ws_monitor.await_zone_state_data(timeout, zones)
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while applying light string to zone(s) {zones}") from e
 
-    def apply_color(self, rgb: Tuple[int, int, int], brightness: int = 100, zones: List[str] = None, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
-        """Sets all lights in the provided zone(s) to a solid color at the given brightness (or all zones if not provided. Default brighness = 100%)"""
+    def apply_color(self, rgb: Tuple[int, int, int], brightness: int=100, zones: List[str]=None, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+        """Sets all lights in the provided zone(s) to a solid color at the given brightness (or all zones if not provided. Default brighness=100%)"""
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             validate_rgb(rgb)
             validate_brightness(brightness)
-            rc = RunConfig(speed = 10, brightness = brightness, effect = "No Effect", effectValue = 0, rgbAdj = [100, 100, 100])
-            pc = PatternConfig(colors = [*rgb], type = "Color", skip = 1, direction = "Left", runData = rc)
-
-            req = SetStateRequest(state = 1, zoneName = zones, data = pc)
-            self.__send(req)
+            config = PatternConfig(type="Color", colors=[*rgb], runData=RunConfig(brightness=brightness))
+            self.__send(SetZoneStateRequest(state=1, zoneName=zones, data=config))
             if sync:
-                self.__ws_monitor.await_zone_state_data(zones, timeout)
+                self.__ws_monitor.await_zone_state_data(timeout, zones)
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while applying color to zone(s) {zones}") from e
 
-    def apply_pattern(self, pattern: str, zones: List[str] = None, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
+    def apply_pattern(self, pattern: str, zones: List[str]=None, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Activates a predefined pattern on the provided zone(s) (or all zones if not provided)"""
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             validate_patterns([pattern], self.pattern_names)
-            req = SetStateRequest(state = 1, zoneName = zones, file = pattern)
-            self.__send(req)
+            self.__send(SetZoneStateRequest(state=1, zoneName=zones, file=pattern))
             if sync:
-                self.__ws_monitor.await_zone_state_data(zones, timeout)
+                self.__ws_monitor.await_zone_state_data(timeout, zones)
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while applying pattern to zone(s) {zones}") from e
 
-    def apply_pattern_config(self, config: PatternConfig, zones: List[str] = None, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
+    def apply_pattern_config(self, config: PatternConfig, zones: List[str]=None, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Activates a pattern configuration on the provided zone(s) (or all zones if not provided)"""
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             validate_pattern_config(config, zones)
-            req = SetStateRequest(state = 1, zoneName = zones, data = config)
-            self.__send(req)
+            self.__send(SetZoneStateRequest(state=1, zoneName=zones, data=config))
             if sync:
-                self.__ws_monitor.await_zone_state_data(zones, timeout)
+                self.__ws_monitor.await_zone_state_data(timeout, zones)
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while applying pattern config to zone(s) {zones}") from e
 
-    def save_pattern(self, pattern: str, config: PatternConfig, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
+    def save_pattern(self, pattern: str, config: PatternConfig, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Creates or updates a pattern file"""
         try:
             validate_pattern_config(config, self.zone_names)
             pattern = Pattern.from_str(pattern) if pattern not in self.pattern_names else next(p for p in self.pattern_list if str(p) == pattern)
             if pattern.readOnly:
                 raise JellyFishException(f"Cannot update pattern '{pattern}' because it is read only")
-            req = SetPatternConfigRequest(pattern = pattern, jsonData = config)
-            self.__send(req)
+            self.__send(SetPatternConfigRequest(pattern=pattern, jsonData=config))
             if sync:
-                self.__ws_monitor.await_pattern_config_data([str(pattern)], timeout)
+                self.__ws_monitor.await_pattern_config_data(timeout, [str(pattern)])
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while saving pattern '{pattern}' config: {config}") from e
 
-    def delete_pattern(self, pattern: str, sync: bool = True, timeout: float = DEFAULT_TIMEOUT):
+    def delete_pattern(self, pattern: str, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Deletes a pattern file or folder"""
         try:
             patterns = self.get_pattern_list()
@@ -336,197 +317,10 @@ class JellyFishController:
                 raise JellyFishException(f"Cannot delete pattern '{str(pattern)}' because it does not exist")
             if pattern.readOnly:
                 raise JellyFishException(f"Cannot delete pattern '{str(pattern)}' because it is read only")
-            req = DeletePatternRequest(pattern)
-            self.__send(req)
+            self.__send(DeletePatternRequest(pattern))
             if sync:
-                self.__ws_monitor.await_pattern_config_data([str(pattern)], timeout)
+                self.__ws_monitor.await_pattern_list_data(timeout, [str(pattern)])
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while deleting pattern '{pattern}'") from e
-
-
-class WebSocketMonitor:
-
-    def __init__(self, address: str):
-        self.__address = address
-        self.__controller_version: ControllerVersion = None
-        self.__zone_configs: Dict[str, ZoneConfig] = {}
-        self.__zone_states: Dict[str, ZoneState] = {}
-        self.__pattern_list: List[Pattern] = []
-        self.__pattern_configs: Dict[str, PatternConfig] = {}
-        self.__connected: TimelyEvent = TimelyEvent()
-        self.__events = {
-            CONTROLLER_VERSION_DATA: TimelyEvent(),
-            ZONE_CONFIG_DATA: TimelyEvent(),
-            PATTERN_LIST_DATA: TimelyEvent(),
-            ZONE_STATE_DATA: {},
-            PATTERN_CONFIG_DATA: {},
-        }
-        self.__locks = {
-            CONTROLLER_VERSION_DATA: Lock(),
-            ZONE_CONFIG_DATA: Lock(),
-            PATTERN_LIST_DATA: Lock(),
-            ZONE_STATE_DATA: Lock(),
-            PATTERN_CONFIG_DATA: Lock(),
-        }
-
-    def __get_entity_event(self, data_key: str, entity_key: str) -> TimelyEvent:
-        """
-        Returns the TimelyEvent object that notifies when new entity data is available.
-        For example, new state data for a zone, or new PatternConfig data for a pattern.
-        """
-        if entity_key not in self.__events[data_key]:
-            self.__events[data_key][entity_key] = TimelyEvent()
-        return self.__events[data_key][entity_key]
-
-    def __trigger_event(self, data_key: str, entity_key: Optional[str] = None) -> None:
-        """Triggers a TimelyEvent object to notify the main thread when new data is available"""
-        event = self.__get_entity_event(data_key, entity_key) if entity_key else self.__events[data_key]
-        event.set()
-        event.clear()
-
-    @property
-    def connected(self) -> bool:
-        """Returns true if the the web socket connection to the controller is established"""
-        return self.__connected.is_set()
-
-    @property
-    def controller_version(self) -> ControllerVersion:
-        """The controllers version information"""
-        with self.__locks[CONTROLLER_VERSION_DATA]:
-            return self.__controller_version
-
-    @property
-    def zone_configs(self) -> Dict[str, ZoneConfig]:
-        """The current zones and their configuration. Ensures thread safe access via Locks"""
-        with self.__locks[ZONE_CONFIG_DATA]:
-            return self.__zone_configs
-
-    @property
-    def pattern_list(self) -> List[Pattern]:
-        """The list of preset patterns currently available. Ensures thread safe access via Locks"""
-        with self.__locks[PATTERN_LIST_DATA]:
-            return self.__pattern_list
-
-    @property
-    def pattern_configs(self) -> Dict[str, PatternConfig]:
-        """The pattern configurations currently available. Ensures thread safe access via Locks"""
-        with self.__locks[PATTERN_CONFIG_DATA]:
-            return self.__pattern_configs
-
-    @property
-    def zone_states(self) -> Dict[str, ZoneState]:
-        """The state of each zone. Ensures thread safe access via Locks"""
-        with self.__locks[ZONE_STATE_DATA]:
-            return self.__zone_states
-
-    def await_connection(self, timeout: float) -> None:
-        """Waits for a connection to the controler to be established. Raises a JellyFishException upon timeout"""
-        if not self.__connected.wait(timeout=timeout):
-            raise JellyFishException(f"Connection to controller at {self.__address} timed out")
-
-    def await_controller_version_data(self, timeout: float) -> None:
-        """Waits for new zone data to be received from the controller. Raises a JellyFishException upon timeout"""
-        if not self.__events[CONTROLLER_VERSION_DATA].wait(timeout=timeout):
-            raise JellyFishException("Request for controller version information timed out")
-
-    def await_zone_config_data(self, timeout: float) -> None:
-        """Waits for new zone data to be received from the controller. Raises a JellyFishException upon timeout"""
-        if not self.__events[ZONE_CONFIG_DATA].wait(timeout=timeout):
-            raise JellyFishException("Request for zone config data timed out")
-
-    def await_pattern_list_data(self, timeout: float) -> None:
-        """Waits for new pattern data to be received from the controller. Raises a JellyFishException upon timeout"""
-        if not self.__events[PATTERN_LIST_DATA].wait(timeout=timeout):
-            raise JellyFishException("Request for pattern list data timed out")
-
-    def await_zone_state_data(self, zones: List[str], timeout: float) -> None:
-        """Waits for new zone state data to be received from the controller. Raises a JellyFishException upon timeout"""
-        self.__await_multiple(ZONE_STATE_DATA, zones, timeout, f"Request for the state data of zones '{zones}' timed out")
-
-    def await_pattern_config_data(self, pattern_names: List[str], timeout: float) -> None:
-        """Waits for new pattern config data to be received from the controller. Raises a JellyFishException upon timeout"""
-        self.__await_multiple(PATTERN_CONFIG_DATA, pattern_names, timeout, f"Request for the configuration of patterns '{pattern_names}' timed out")
-
-    def __await_multiple(self, data_key: str, entity_keys: List[str], timeout: float, timeout_msg: str) -> None:
-        """Convenience function that waits for multiple events to occur. Raises a JellyFishException upon timeout"""
-        start_ts = time.perf_counter()
-        events = [self.__get_entity_event(data_key, entity_key) for entity_key in entity_keys]
-        for event in events:
-            # We cannot simply wait for each event sequentially because messages can be received simultaneously and out of order.
-            # To overcome this, use the TimelyEvent timestamp to check if data has been received since this function was called.
-            timeout_remaining = timeout - (time.perf_counter() - start_ts) # Decrement the timeout as we wait for each event
-            if not event.wait(timeout = timeout_remaining, after_ts = start_ts):
-                raise JellyFishException(timeout_msg)
-
-    def on_open(self, ws):
-        """Callback method that is invoked when the web socket connection is opened"""
-        LOGGER.debug("Connected to the JellyFish Lighting controller at %s", self.__address)
-        self.__connected.set()
-
-    def on_close(self, ws, status, message):
-        """Callback method that is invoked when the web socket connection is closed"""
-        LOGGER.debug("Disconnected from the JellyFish Lighting controller at %s", self.__address)
-        self.__connected.clear()
-
-    def on_message(self, ws, message):
-        """Callback method that is invoked when data is received over the web socket connection"""
-        LOGGER.debug("Recieved: %s", message)
-        try:
-            # Parse the data
-            data = from_json(message)
-            if data["cmd"] != "fromCtlr":
-                return
-
-            # Check what type of data the message contains (zones, patterns, or states).
-            # Then, update cached data in a thread safe manner (using locks) and trigger
-            # events to let listeners/waiters know that new data has been received
-            if CONTROLLER_VERSION_DATA in data:
-                with self.__locks[CONTROLLER_VERSION_DATA]:
-                    self.__controller_version = data[CONTROLLER_VERSION_DATA]
-                self.__trigger_event(CONTROLLER_VERSION_DATA)
-
-            elif ZONE_CONFIG_DATA in data:
-                with self.__locks[ZONE_CONFIG_DATA]:
-                    self.__zone_configs = data[ZONE_CONFIG_DATA]
-                self.__trigger_event(ZONE_CONFIG_DATA)
-
-            elif PATTERN_LIST_DATA in data:
-                with self.__locks[PATTERN_LIST_DATA]:
-                    self.__pattern_list = data[PATTERN_LIST_DATA]
-                self.__trigger_event(PATTERN_LIST_DATA)
-
-            elif ZONE_STATE_DATA in data:
-                state = data[ZONE_STATE_DATA]
-                with self.__locks[ZONE_STATE_DATA]:
-                    for zone in state.zoneName:
-                        self.__zone_states[zone] = state
-                        self.__trigger_event(ZONE_STATE_DATA, zone)
-
-            elif PATTERN_CONFIG_DATA in data:
-                pattern_config = data[PATTERN_CONFIG_DATA]
-                pattern = Pattern(pattern_config["folders"], pattern_config["name"])
-                with self.__locks[PATTERN_CONFIG_DATA]:
-                    self.__pattern_configs[str(pattern)] = pattern_config["jsonData"]
-                if not next((p for p in self.__pattern_list if str(p) == str(pattern)), False):
-                    with self.__locks[PATTERN_LIST_DATA]:
-                        self.__pattern_list.append(pattern)
-                    self.__trigger_event(PATTERN_LIST_DATA)
-                self.__trigger_event(PATTERN_CONFIG_DATA, str(pattern))
-
-            elif DELETE_PATTERN_DATA in data:
-                pattern = data[DELETE_PATTERN_DATA]
-                with self.__locks[PATTERN_LIST_DATA]:
-                    self.__pattern_list = [p for p in self.__pattern_list if str(p) != str(pattern)]
-                if pattern.name:
-                    with self.__locks[PATTERN_CONFIG_DATA]:
-                        del self.__pattern_configs[str(pattern)]
-                self.__trigger_event(PATTERN_CONFIG_DATA, str(pattern))
-
-        except Exception:
-            LOGGER.exception("Error encountered while processing web socket message: '%s'", message)
-
-    def on_error(self, ws, error):
-        """Callback method that is invoked when the web socket connection encounters an error"""
-        LOGGER.error("Web socket connection to the JellyFish Lighting controller at %s encountered an error: %s", self.__address, error)
