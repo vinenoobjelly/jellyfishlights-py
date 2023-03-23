@@ -1,6 +1,6 @@
 import time
 from threading import Thread
-from jellyfishlightspy.monitor import CacheEntry, DataCache, WebSocketMonitor
+from jellyfishlightspy.cache import DataCache
 
 def test_data_cache():
     c = DataCache()

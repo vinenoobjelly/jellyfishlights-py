@@ -9,7 +9,9 @@ from jellyfishlightspy.helpers import (
     validate_rgb,
     validate_patterns,
     validate_zones,
-    validate_pattern_config
+    validate_pattern_config,
+    validate_schedule_event,
+    validate_schedule_event_action,
 )
 
 # Note: tests in model.py sufficiently cover from_json, to_json, _default, and _object_hook
@@ -186,6 +188,121 @@ def test_validate_zones(zc_obj):
     validate_zones([valid_zones[0]], valid_zones)
     with pytest.raises(JellyFishException):
         validate_zones(["bad/zone"], valid_zones)
+
+def test_validate_schedule_event(se_obj):
+    valid_patterns = [se_obj.actions[0].patternFile]
+    valid_zones = se_obj.actions[0].zones
+    validate_schedule_event(se_obj, False, valid_patterns, valid_zones)
+    se_obj.label = 1
+    with pytest.raises(JellyFishException):
+        validate_schedule_event(se_obj, False, valid_patterns, valid_zones)
+    se_obj.label = ""
+
+    orig_days = se_obj.days.copy()
+    se_obj.days = ["MON", "TUE"]
+    with pytest.raises(JellyFishException):
+        validate_schedule_event(se_obj, False, valid_patterns, valid_zones)
+    se_obj.days = ["20221231", "20230101"]
+    validate_schedule_event(se_obj, True, valid_patterns, valid_zones)
+    se_obj.days = ["221231", "220101"]
+    with pytest.raises(JellyFishException):
+        validate_schedule_event(se_obj, True, valid_patterns, valid_zones)
+    se_obj.days = ["1231", "0101"]
+    validate_schedule_event(se_obj, True, valid_patterns, valid_zones)
+    se_obj.days = orig_days
+    validate_schedule_event(se_obj, False, valid_patterns, valid_zones)
+
+    se_obj.actions[0].zones.extend("another-zone")
+    with pytest.raises(JellyFishException):
+        validate_schedule_event(se_obj, False, valid_patterns, valid_zones)
+    se_obj.actions[0].zones.pop()
+
+
+def test_validate_schedule_event_action(se_obj):
+    action = se_obj.actions[0]
+    valid_patterns = [action.patternFile]
+    valid_zones = action.zones
+    validate_schedule_event_action(action, valid_patterns, valid_zones)
+
+    orig_type = action.type
+    action.type = "blackjack"
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.type = orig_type
+
+    orig_start = action.startFrom
+    action.startFrom = "square-one"
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.startFrom = orig_start
+
+    orig_hour = action.hour
+    action.hour = "12"
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.hour = 24
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.hour = -1
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.hour = 0
+    validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.hour = 23
+    validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.hour = orig_hour
+
+    orig_min = action.minute
+    action.startFrom = "time"
+    action.minute = "23"
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.minute = -1
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.minute = 60
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.minute = 59
+    validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.minute = 0
+    validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.startFrom = "sunset"
+    action.minute = "5"
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.minute = -60
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.minute = 60
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.minute = 9
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.minute = 55
+    validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.minute = 0
+    validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.minute = -55
+    validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.minute = orig_min
+
+    action.type = "RUN"
+    action.patternFile = ["pattern"]
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.patternFile = valid_patterns[0]
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, ["bad-pattern"], valid_zones)
+    action.type = orig_type
+
+    action.zones = valid_zones[0]
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    action.zones = valid_zones
+    with pytest.raises(JellyFishException):
+        validate_schedule_event_action(action, valid_patterns, ["bad-zone"])
 
 def test_timely_event():
     event = TimelyEvent()

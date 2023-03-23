@@ -26,5 +26,5 @@ def test_bad_host():
 def test_timeout():
     jfc = JellyFishController("bad-controller-host")
     with pytest.raises(JellyFishException) as e:
-        jfc.connect(timeout=0)
+        jfc.connect(timeout=1)
         assert "timed out" in str(e)

@@ -2,9 +2,27 @@ import json
 import time
 from typing import Type, Tuple, List, Dict, Any, Optional
 from threading import Event
-from .model import RunConfig, PatternConfig, ZoneState, Pattern, PortMapping, ZoneConfig, ControllerVersion
 from .requests import SetPatternConfigRequest
-from .const import VALID_TYPES, VALID_DIRECTIONS, VALID_EFFECTS_BETWEEN_PIXELS, VALID_EFFECTS
+from .const import (
+    VALID_TYPES,
+    VALID_DIRECTIONS,
+    VALID_EFFECTS_BETWEEN_PIXELS,
+    VALID_EFFECTS,
+    VALID_ACTION_TYPES,
+    VALID_START_FROMS,
+    VALID_DAYS,
+)
+from .model import (
+    RunConfig,
+    PatternConfig,
+    ZoneState,
+    Pattern,
+    PortMapping,
+    ZoneConfig,
+    ControllerVersion,
+    ScheduleEvent,
+    ScheduleEventAction,
+)
 
 class JellyFishException(Exception):
     """An exception raised when interacting with the jellyfishlights-py module"""
@@ -125,6 +143,41 @@ def validate_run_config(config: RunConfig) -> RunConfig:
     if type(config.rgbAdj) is not list or len(config.rgbAdj) != 3 or not all((i is not None and type(i) is int and 0 <= i <= 255) for i in config.rgbAdj):
         raise JellyFishException(f"RunConfig.rgbAdj value {config.rgbAdj} is invalid (must be a list of three integers between 0 and 255)")
 
+def validate_schedule_event(event: ScheduleEvent, is_calendar_event:bool, valid_patterns: List[str], valid_zones: List[str]) -> ScheduleEvent:
+    if type(event.label) is not str:
+        raise JellyFishException(f"ScheduleEvent.event value '{event.label}' is invalid (must be a string)")
+    if is_calendar_event:
+        if not all(len(date_str) in [4, 8] for date_str in event.days):
+            raise JellyFishException(f"ScheduleEvent.days value {event.days} is invalid (must be a list of date strings in YYYYMMDD or MMDD format)")
+    elif not all(day in VALID_DAYS for day in event.days):
+        raise JellyFishException(f"ScheduleEvent.days value {event.days} is invalid (must be a list containing one or more day values: {VALID_DAYS})")
+    if type(event.actions) is not list:
+        raise JellyFishException(f"ScheduleEvent.actions value {event.actions} is invalid (must be a list)")
+    for action in event.actions:
+        validate_schedule_event_action(action, valid_patterns, valid_zones)
+    zone_sets = [set(action.zones) for action in event.actions]
+    if not all(zone_set == zone_sets[0] for zone_set in zone_sets):
+        raise JellyFishException("ScheduleEvent.actions zones are invalid (all zone lists must be equal)")
+    return event
+
+def validate_schedule_event_action(action: ScheduleEventAction, valid_patterns: List[str], valid_zones: List[str]) -> ScheduleEventAction:
+    if action.type not in VALID_ACTION_TYPES:
+        raise JellyFishException(f"ScheduleEventAction.type value '{action.type}' is invalid (valid values are: {VALID_ACTION_TYPES})")
+    if action.startFrom not in VALID_START_FROMS:
+        raise JellyFishException(f"ScheduleEventAction.startFrom value '{action.startFrom}' is invalid (valid values are: {VALID_START_FROMS})")
+    if type(action.hour) is not int or action.hour < 0 or action.hour > 23:
+        raise JellyFishException(f"ScheduleEventAction.hour value '{action.hour}' is invalid (must be an integer between 0 and 23)")
+    if action.startFrom == "time":
+        if type(action.minute) is not int or action.minute < 0 or action.minute > 59:
+            raise JellyFishException(f"ScheduleEventAction.minute value '{action.minute}' is invalid (must be an integer between 0 and 59 when startFrom='time')")
+    elif type(action.minute) is not int or action.minute < -55 or action.minute > 55 or action.minute % 5 != 0:
+        raise JellyFishException(f"ScheduleEventAction.minute value '{action.minute}' is invalid (must be an integer between -55 and 55 and divisible by 5 when startFrom!='time')")
+    if action.type == "RUN":
+        if type(action.patternFile) is not str or action.patternFile not in valid_patterns:
+            raise JellyFishException(f"ScheduleEventAction.patternFile value '{action.patternFile}' is invalid")
+    if type(action.zones) is not list or not all(zone in valid_zones for zone in action.zones):
+        raise JellyFishException(f"ScheduleEventAction.zones value(s) {action.zones} are invalid (valid zones are: {valid_zones})")
+
 def _serialize_data_attributes(obj: dict) -> dict:
     """
     Special handling for ZoneState.data and SetPatternConfigRequest.patternFileData.jsonData
@@ -178,6 +231,10 @@ def _object_hook(data):
         return PortMapping(**data)
     if "numPixels" in data:
         return ZoneConfig(**data)
+    if "actions" in data:
+        return ScheduleEvent(**data)
+    if "startFrom" in data:
+        return ScheduleEventAction(**data)
     return data
 
 def from_json(json_str: str):

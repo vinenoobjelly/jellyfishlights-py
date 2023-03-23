@@ -5,7 +5,8 @@ import websocket
 from typing import Dict, List, Tuple, Optional, Any
 from threading import Thread
 from .const import LOGGER, DEFAULT_TIMEOUT
-from .model import Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, ControllerVersion
+from .model import Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, ControllerVersion, ScheduleEvent
+from .cache import JellyFishCache
 from .monitor import WebSocketMonitor
 from .requests import (
     GetControllerVersionRequest,
@@ -13,8 +14,12 @@ from .requests import (
     GetZoneStateRequest,
     GetPatternListRequest,
     GetPatternConfigRequest,
+    GetCalendarScheduleRequest,
+    GetDailyScheduleRequest,
     SetZoneStateRequest,
     SetPatternConfigRequest,
+    SetCalendarScheduleRequest,
+    SetDailyScheduleRequest,
     DeletePatternRequest,
 )
 from .helpers import (
@@ -24,23 +29,24 @@ from .helpers import (
     validate_zones,
     validate_patterns,
     validate_pattern_config,
+    validate_schedule_event,
     to_json,
 )
 
-#TODO: adding and setting patterns, schedules, and zones
-#TODO: get current schedule
+#TODO: adding and setting zones
 
-# Silence warning message when websocket connects
-websocket.enableTrace(True, level="ERROR")
+# Silence logging - we do our own
+websocket.enableTrace(True, level="FATAL")
 
 class JellyFishController:
-    """Manages connectivity and data transfer to/from a JellyFish Lighting Controller"""
+    """Main interface that enables retrieving data, saving data, and manipulating the lights"""
 
     def __init__(self, address: str):
         self.address = address
+        self.__cache = JellyFishCache()
         self.__ws: websocket.WebSocketApp
         self.__ws_thread: Thread
-        self.__ws_monitor = WebSocketMonitor(address)
+        self.__ws_monitor = WebSocketMonitor(address, self.__cache)
 
     def __repr__(self):
         return self.__class__.__name__ + str({"address": self.address, "connected": self.connected})
@@ -53,16 +59,14 @@ class JellyFishController:
     @property
     def controller_version(self) -> ControllerVersion:
         """The controller's version information (returns cached data if available)"""
-        if not self.__ws_monitor.controller_version:
-            return self.get_controller_version()
-        return self.__ws_monitor.controller_version
+        return self.__cache.controller_version_data.get_entry() or self.get_controller_version()
 
     @property
     def zone_configs(self) -> Dict[str, ZoneConfig]:
         """The current zones and their configuration (returns cached data if available)"""
-        if len(self.__ws_monitor.zone_configs) == 0:
+        if self.__cache.zone_config_data.size == 0:
             return self.get_zone_configs()
-        return self.__ws_monitor.zone_configs
+        return self.__cache.zone_config_data.get_all_entries()
 
     @property
     def zone_names(self) -> List[str]:
@@ -72,9 +76,9 @@ class JellyFishController:
     @property
     def pattern_list(self) -> List[Pattern]:
         """The list of preset patterns, including folders (returns cached data if available)"""
-        if len(self.__ws_monitor.pattern_list) == 0:
+        if self.__cache.pattern_list_data.size == 0:
             return self.get_pattern_list()
-        return list(self.__ws_monitor.pattern_list.values())
+        return list(self.__cache.pattern_list_data.get_all_entries().values())
 
     @property
     def pattern_names(self) -> List[str]:
@@ -84,16 +88,30 @@ class JellyFishController:
     @property
     def pattern_configs(self) -> Dict[str, PatternConfig]:
         """The current pattern configurations, excluding folders (returns cached data if available)"""
-        if len(self.__ws_monitor.pattern_configs) != len(self.pattern_list):
+        if self.__cache.pattern_config_data.size == 0:
             return self.get_pattern_configs()
-        return self.__ws_monitor.pattern_configs
+        return self.__cache.pattern_config_data.get_all_entries()
 
     @property
     def zone_states(self) -> Dict[str, ZoneState]:
         """The state of each zone (returns cached data if available)"""
-        if len(self.__ws_monitor.zone_states) != len(self.zones):
+        if self.__cache.zone_state_data.size == 0:
             return self.get_zone_states()
-        return self.__ws_monitor.zone_states
+        return self.__cache.zone_state_data.get_all_entries()
+
+    @property
+    def calendar_schedule(self) -> List[ScheduleEvent]:
+        """The list of events in the calendar-based schedule"""
+        if self.__cache.calendar_schedule_data.size == 0:
+            return self.get_calendar_schedule()
+        return self.__cache.calendar_schedule_data.get_entry()
+
+    @property
+    def daily_schedule(self) -> List[ScheduleEvent]:
+        """The list of events in the daily schedule"""
+        if self.__cache.daily_schedule_data.size == 0:
+            return self.get_daily_schedule()
+        return self.__cache.daily_schedule_data.get_entry()
 
     def connect(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> None:
         """Establishes a connection to the JellyFish Lighting controller at the given address and begins listening for messages"""
@@ -105,9 +123,12 @@ class JellyFishController:
                 on_message = self.__ws_monitor.on_message,
                 on_error = self.__ws_monitor.on_error
             )
+            websocket.setdefaulttimeout(timeout)
             self.__ws_thread = Thread(target=lambda: self.__ws.run_forever(), daemon=True)
             self.__ws_thread.start()
-            self.__ws_monitor.await_connection(timeout)
+            if not self.__ws_monitor.await_connection(timeout):
+                self.__ws.close()
+                raise JellyFishException(f"Connection to controller at {self.__address} timed out")
         except JellyFishException:
             raise
         except Exception as e:
@@ -137,30 +158,41 @@ class JellyFishController:
         """Retrieves version information from the controller"""
         try:
             self.__send(GetControllerVersionRequest())
-            self.__ws_monitor.await_controller_version_data(timeout)
-            return self.__ws_monitor.controller_version
+            if not self.__cache.controller_version_data.await_update(timeout):
+                raise JellyFishException("Request for controller version information timed out")
+            return self.__cache.controller_version_data.get_entry()
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException("Error encountered while retrieving zone data") from e
+
+    def get_zone_names(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> List[str]:
+        """Retrieves the list of current zones from the controller and caches the data"""
+        return list(self.get_zone_configs(timeout))
 
     def get_zone_configs(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> Dict[str, ZoneConfig]:
         """Retrieves the list of current zones and their configuration from the controller and caches the data"""
         try:
             self.__send(GetZoneConfigRequest())
-            self.__ws_monitor.await_zone_config_data(timeout)
-            return self.__ws_monitor.zone_configs
+            if not self.__cache.zone_config_data.await_finalization(timeout):
+                raise JellyFishException("Request for zone config data timed out")
+            return self.__cache.zone_config_data.get_all_entries()
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException("Error encountered while retrieving zone data") from e
 
+    def get_pattern_names(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> List[str]:
+        """Retrieves the list of current patterns from the controller and caches the data"""
+        return [str(p) for p in self.get_pattern_list(timeout) if not p.is_folder]
+
     def get_pattern_list(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> List[Pattern]:
         """Retrieves the list of preset patterns from the controller and caches the data"""
         try:
             self.__send(GetPatternListRequest())
-            self.__ws_monitor.await_pattern_list_data(timeout)
-            return list(self.__ws_monitor.pattern_list.values())
+            if not self.__cache.pattern_list_data.await_finalization(timeout):
+                raise JellyFishException("Request for pattern list data timed out")
+            return list(self.__cache.pattern_list_data.get_all_entries().values())
         except JellyFishException:
             raise
         except Exception as e:
@@ -174,11 +206,13 @@ class JellyFishController:
         """Retrieves the configurations for the specified patterns (or all patterns if not provided) from the controller and caches the data"""
         try:
             if not patterns:
-                self.__ws_monitor.pattern_configs.clear() # Refresh all cached data
+                # clear the cache for a full refresh (ensures deleted records do not remain)
+                self.__cache.pattern_config_data.clear()
             patterns = validate_patterns(patterns, self.pattern_names) if patterns else self.pattern_names
             self.__send(GetPatternConfigRequest(patterns))
-            self.__ws_monitor.await_pattern_config_data(timeout, patterns)
-            return self.__ws_monitor.pattern_configs
+            if not self.__cache.pattern_config_data.await_update(timeout, patterns):
+                raise JellyFishException(f"Request for the configuration of patterns '{patterns}' timed out")
+            return self.__cache.pattern_config_data.get_all_entries()
         except JellyFishException:
             raise
         except Exception as e:
@@ -192,23 +226,49 @@ class JellyFishController:
         """Retrieves the current state of the specified zones (or all zones if not provided) from the controller and caches the data"""
         try:
             if not zones:
-                self.__ws_monitor.zone_states.clear() # Refresh all cached data
+                # clear the cache for a full refresh (ensures deleted records do not remain)
+                self.__cache.zone_state_data.clear()
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             self.__send(GetZoneStateRequest(zones))
-            self.__ws_monitor.await_zone_state_data(timeout, zones)
-            return self.__ws_monitor.zone_states
+            if not self.__cache.zone_state_data.await_update(timeout, zones):
+                raise JellyFishException(f"Request for the state data of zones '{zones}' timed out")
+            return self.__cache.zone_state_data.get_all_entries()
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while retrieving the state of zone(s) {zones}") from e
+
+    def get_calendar_schedule(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> List[ScheduleEvent]:
+        """Retrieves the current calendar event schedule from the controller and caches the data"""
+        try:
+            self.__send(GetCalendarScheduleRequest())
+            if not self.__cache.calendar_schedule_data.await_update(timeout):
+                raise JellyFishException("Request for calendar schedule data timed out")
+            return self.__cache.calendar_schedule_data.get_entry()
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException("Error encountered while retrieving calendar schedule data") from e
+
+    def get_daily_schedule(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> List[ScheduleEvent]:
+        """Retrieves the current daily event schedule from the controller and caches the data"""
+        try:
+            self.__send(GetDailyScheduleRequest())
+            if not self.__cache.daily_schedule_data.await_update(timeout):
+                raise JellyFishException("Request for daily schedule data timed out")
+            return self.__cache.daily_schedule_data.get_entry()
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException("Error encountered while retrieving daily schedule data") from e
 
     def __turn_on_off(self, on: bool, zones: List[str], sync: bool, timeout: float) -> None:
         """Convenience function that turns zones on or off"""
         try:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             self.__send(SetZoneStateRequest(state=int(on), zoneName=zones))
-            if sync:
-                self.__ws_monitor.await_zone_state_data(timeout, zones)
+            if sync and not self.__cache.zone_state_data.await_update(timeout, zones):
+                raise JellyFishException(f"Request to turn {'on' if on else 'off'} zones '{zones}' timed out")
         except JellyFishException:
             raise
         except Exception as e:
@@ -245,8 +305,8 @@ class JellyFishController:
                 colors_pos.append(i)
             config = PatternConfig(type="Soffit", colors=colors, colorPos=colors_pos, runData=RunConfig(brightness=brightness))
             self.__send(SetZoneStateRequest(state=3, zoneName=zones, data=config))
-            if sync:
-                self.__ws_monitor.await_zone_state_data(timeout, zones)
+            if sync and not self.__cache.zone_state_data.await_update(timeout, zones):
+                raise JellyFishException(f"Request to apply light string on zones {zones} timed out")
         except JellyFishException:
             raise
         except Exception as e:
@@ -260,8 +320,8 @@ class JellyFishController:
             validate_brightness(brightness)
             config = PatternConfig(type="Color", colors=[*rgb], runData=RunConfig(brightness=brightness))
             self.__send(SetZoneStateRequest(state=1, zoneName=zones, data=config))
-            if sync:
-                self.__ws_monitor.await_zone_state_data(timeout, zones)
+            if sync and not self.__cache.zone_state_data.await_update(timeout, zones):
+                raise JellyFishException(f"Request to apply color {color} on zones {zones} timed out")
         except JellyFishException:
             raise
         except Exception as e:
@@ -273,8 +333,8 @@ class JellyFishController:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             validate_patterns([pattern], self.pattern_names)
             self.__send(SetZoneStateRequest(state=1, zoneName=zones, file=pattern))
-            if sync:
-                self.__ws_monitor.await_zone_state_data(timeout, zones)
+            if sync and not self.__cache.zone_state_data.await_update(timeout, zones):
+                raise JellyFishException(f"Request to apply pattern '{pattern}' on zones {zones} timed out")
         except JellyFishException:
             raise
         except Exception as e:
@@ -286,8 +346,8 @@ class JellyFishController:
             zones = validate_zones(zones, self.zone_names) if zones else self.zone_names
             validate_pattern_config(config, zones)
             self.__send(SetZoneStateRequest(state=1, zoneName=zones, data=config))
-            if sync:
-                self.__ws_monitor.await_zone_state_data(timeout, zones)
+            if sync and not self.__cache.zone_state_data.await_update(timeout, zones):
+                raise JellyFishException(f"Request to apply pattern config on zones '{zones}' timed out")
         except JellyFishException:
             raise
         except Exception as e:
@@ -301,8 +361,8 @@ class JellyFishController:
             if pattern.readOnly:
                 raise JellyFishException(f"Cannot update pattern '{pattern}' because it is read only")
             self.__send(SetPatternConfigRequest(pattern=pattern, jsonData=config))
-            if sync:
-                self.__ws_monitor.await_pattern_config_data(timeout, [str(pattern)])
+            if sync and not self.__cache.pattern_config_data.await_update(timeout, [str(pattern)]):
+                raise JellyFishException(f"Request to save pattern '{str(pattern)}' timed out")
         except JellyFishException:
             raise
         except Exception as e:
@@ -311,16 +371,58 @@ class JellyFishController:
     def delete_pattern(self, pattern: str, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Deletes a pattern file or folder"""
         try:
-            patterns = self.get_pattern_list()
-            pattern = next((p for p in patterns if str(p) == pattern), None)
-            if not pattern:
-                raise JellyFishException(f"Cannot delete pattern '{str(pattern)}' because it does not exist")
-            if pattern.readOnly:
-                raise JellyFishException(f"Cannot delete pattern '{str(pattern)}' because it is read only")
-            self.__send(DeletePatternRequest(pattern))
-            if sync:
-                self.__ws_monitor.await_pattern_list_data(timeout, [str(pattern)])
+            patterns = self.pattern_list
+            pattern_obj = next((p for p in patterns if str(p) == pattern), None)
+            if not pattern_obj:
+                raise JellyFishException(f"Cannot delete pattern '{pattern}' because it does not exist")
+            if pattern_obj.readOnly:
+                raise JellyFishException(f"Cannot delete pattern '{pattern}' because it is read only")
+            self.__send(DeletePatternRequest(pattern_obj))
+            if sync and not self.__cache.pattern_list_data.await_update(timeout, [pattern]):
+                raise JellyFishException(f"Request to delete pattern '{pattern}' timed out")
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while deleting pattern '{pattern}'") from e
+
+    def add_calendar_event(self, event: ScheduleEvent, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+        """Adds a calendar event to the schedule"""
+        events = self.calendar_schedule
+        events.append(event)
+        self.save_calendar_schedule(events, sync, timeout)
+
+    def save_calendar_schedule(self, events: List[ScheduleEvent], sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+        """Saves the schedule of calendar events. WARNING: this list must include all calendar events in the entire schedule! Any events not included will be deleted"""
+        try:
+            patterns = self.pattern_names
+            zones = self.zone_names
+            for event in events:
+                validate_schedule_event(event, True, patterns, zones)
+            self.__send(SetCalendarScheduleRequest(events))
+            if sync and not self.__cache.calendar_schedule_data.await_update(timeout):
+                raise JellyFishException("Request for calendar schedule data timed out")
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException("Error encountered while saving calendar event schedule") from e
+
+    def add_daily_event(self, event: ScheduleEvent, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+        """Adds a daily event to the schedule"""
+        events = self.daily_schedule
+        events.append(event)
+        self.save_daily_schedule(events, sync, timeout)
+
+    def save_daily_schedule(self, events: List[ScheduleEvent], sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+        """Saves the schedule of daily events. WARNING: this list must include all daily events in the entire schedule! Any events not included will be deleted"""
+        try:
+            patterns = self.pattern_names
+            zones = self.zone_names
+            for event in events:
+                validate_schedule_event(event, False, patterns, zones)
+            self.__send(SetDailyScheduleRequest(events))
+            if sync and not self.__cache.daily_schedule_data.await_update(timeout):
+                raise JellyFishException("Request for daily schedule data timed out")
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException("Error encountered while saving daily event schedule") from e

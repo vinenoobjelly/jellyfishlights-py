@@ -1,5 +1,15 @@
 import json
-from jellyfishlightspy.model import RunConfig, PatternConfig, ZoneState, Pattern, PortMapping, ZoneConfig, ControllerVersion
+from jellyfishlightspy.model import (
+    RunConfig,
+    PatternConfig,
+    ZoneState,
+    Pattern,
+    PortMapping,
+    ZoneConfig,
+    ControllerVersion,
+    ScheduleEvent,
+    ScheduleEventAction,
+)
 from jellyfishlightspy.helpers import to_json, from_json
 
 def test_controller_version(helpers, cv_obj, cv_json):
@@ -55,3 +65,9 @@ def test_pattern_str():
     p2 = Pattern.from_str(str(p))
     assert p.folders == p2.folders
     assert p.name == p2.name
+
+def test_schedule_event(helpers, se_obj, se_json):
+    o = helpers.assert_marshalling_works(se_obj, se_json)
+    assert isinstance(o, ScheduleEvent)
+    for action in o.actions:
+        assert isinstance(action, ScheduleEventAction)

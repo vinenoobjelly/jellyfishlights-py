@@ -2,7 +2,17 @@ import pytest
 import json
 from typing import List
 from jellyfishlightspy.helpers import to_json, from_json
-from jellyfishlightspy.model import RunConfig, PatternConfig, ZoneState, Pattern, ZoneConfig, PortMapping, ControllerVersion
+from jellyfishlightspy.model import (
+    RunConfig,
+    PatternConfig,
+    ZoneState,
+    Pattern,
+    ZoneConfig,
+    PortMapping,
+    ControllerVersion,
+    ScheduleEvent,
+    ScheduleEventAction,
+)
 from jellyfishlightspy.requests import GetRequest, SetZoneStateRequest, SetPatternConfigRequest
 from tests.helpers import Helpers
 
@@ -90,3 +100,18 @@ def zc_obj() -> ZoneConfig:
 @pytest.fixture
 def zc_json() -> str:
     return '{"numPixels":26,"portMap":[{"ctlrName":"test-ctlr","phyEndIdx":1,"phyPort":2,"phyStartIdx":3,"zoneRGBStartIdx":4}, {"ctlrName":"test-ctlr","phyEndIdx":5,"phyPort":6,"phyStartIdx":7,"zoneRGBStartIdx":8}]}'
+
+@pytest.fixture
+def se_obj() -> ScheduleEvent:
+    return ScheduleEvent(
+        label = "",
+        days = ["M", "T", "W"],
+        actions = [
+            ScheduleEventAction("RUN", "sunset", 0, 50, "test-pattern", ["test-zone-1", "test-zone-2"]),
+            ScheduleEventAction("STOP", "sunrise", 0, -25, "", ["test-zone-1", "test-zone-2"])
+        ]
+    )
+
+@pytest.fixture
+def se_json() -> str:
+    return '{"label": "", "days": ["M", "T", "W"], "actions": [{"type": "RUN", "startFrom": "sunset", "hour": 0, "minute": 50, "patternFile": "test-pattern", "zones": ["test-zone-1", "test-zone-2"]}, {"type": "STOP", "startFrom": "sunrise", "hour": 0, "minute": -25, "patternFile": "", "zones": ["test-zone-1", "test-zone-2"]}]}'
