@@ -114,8 +114,9 @@ for event in events:
 
 # Add an event to the schedule
 event = ScheduleEvent(
-    # Must be in YYYYMMDD or MMDD format for calendar events. If specifying a range, include each individual day
-    days = ["1231", "0101", "0102"],
+    # Must be in YYYYMMDD format for calendar events. If specifying a range, include each individual day
+    # Even though a year must be specified the event will run annually
+    days = ["20231231", "20230101", "20230102"],
     # days = ["M", "T", "W", "TH", "F", "SA", "S"], <-- Example for a daily schedule event
     actions = [
         ScheduleEventAction(
@@ -127,7 +128,7 @@ event = ScheduleEvent(
           zones = jfc.zone_names # The list of zones for each RUN/STOP action must match!
         ),
         # For 'time', the hour must be between 0 and 23, and minute between 0 and 59
-        ScheduleEventAction("STOP", "time", 0, -25, "", jfc.zone_names)
+        ScheduleEventAction("STOP", "time", 5, 00, "", jfc.zone_names)
     ]
 )
 jfc.add_calendar_event(event)
