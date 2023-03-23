@@ -2,6 +2,7 @@ import json
 import time
 from typing import Type, Tuple, List, Dict, Any, Optional
 from threading import Event
+from datetime import datetime
 from .requests import SetPatternConfigRequest
 from .const import (
     VALID_TYPES,
@@ -143,12 +144,19 @@ def validate_run_config(config: RunConfig) -> RunConfig:
     if type(config.rgbAdj) is not list or len(config.rgbAdj) != 3 or not all((i is not None and type(i) is int and 0 <= i <= 255) for i in config.rgbAdj):
         raise JellyFishException(f"RunConfig.rgbAdj value {config.rgbAdj} is invalid (must be a list of three integers between 0 and 255)")
 
+def _date_str_is_valid(date_str: str) -> bool:
+    try:
+        datetime.strptime(date_str, '%Y%m%d')
+        return True
+    except ValueError:
+        return False
+
 def validate_schedule_event(event: ScheduleEvent, is_calendar_event:bool, valid_patterns: List[str], valid_zones: List[str]) -> ScheduleEvent:
     if type(event.label) is not str:
         raise JellyFishException(f"ScheduleEvent.event value '{event.label}' is invalid (must be a string)")
     if is_calendar_event:
-        if not all(len(date_str) in [4, 8] for date_str in event.days):
-            raise JellyFishException(f"ScheduleEvent.days value {event.days} is invalid (must be a list of date strings in YYYYMMDD or MMDD format)")
+        if not all(len(date_str) == 8 and _date_str_is_valid(date_str) for date_str in event.days):
+            raise JellyFishException(f"ScheduleEvent.days value {event.days} is invalid (must be a list of date strings in YYYYMMDD format)")
     elif not all(day in VALID_DAYS for day in event.days):
         raise JellyFishException(f"ScheduleEvent.days value {event.days} is invalid (must be a list containing one or more day values: {VALID_DAYS})")
     if type(event.actions) is not list:

@@ -208,6 +208,9 @@ def test_validate_schedule_event(se_obj):
     with pytest.raises(JellyFishException):
         validate_schedule_event(se_obj, True, valid_patterns, valid_zones)
     se_obj.days = ["1231", "0101"]
+    with pytest.raises(JellyFishException):
+        validate_schedule_event(se_obj, True, valid_patterns, valid_zones)
+    se_obj.days = ["20221231", "20230101"]
     validate_schedule_event(se_obj, True, valid_patterns, valid_zones)
     se_obj.days = orig_days
     validate_schedule_event(se_obj, False, valid_patterns, valid_zones)

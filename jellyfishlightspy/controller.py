@@ -128,7 +128,7 @@ class JellyFishController:
             self.__ws_thread.start()
             if not self.__ws_monitor.await_connection(timeout):
                 self.__ws.close()
-                raise JellyFishException(f"Connection to controller at {self.__address} timed out")
+                raise JellyFishException(f"Connection to controller at {self.address} timed out")
         except JellyFishException:
             raise
         except Exception as e:

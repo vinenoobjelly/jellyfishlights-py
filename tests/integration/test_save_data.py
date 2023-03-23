@@ -39,7 +39,7 @@ def test_get_and_set_calendar_schedule(controller):
     test_zones = controller.zone_names
     e1 = ScheduleEvent(
         label = "INT_TEST_1",
-        days = ["1231", "0101", "0102"],
+        days = ["20231231", "20230101", "20230102"],
         actions = [
             ScheduleEventAction("RUN", "sunset", 0, 50, test_pattern, test_zones),
             ScheduleEventAction("STOP", "sunrise", 0, -25, "", test_zones)

@@ -23,6 +23,8 @@ def test_bad_host():
         jfc.connect()
         assert "Could not connect" in str(e)
 
+# TODO: This test seems to delay the execution of the following tests...
+# Not sure why. Independent tests verify connect() returns immediately after timeout
 def test_timeout():
     jfc = JellyFishController("bad-controller-host")
     with pytest.raises(JellyFishException) as e:
