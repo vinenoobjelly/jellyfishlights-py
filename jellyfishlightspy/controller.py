@@ -445,7 +445,7 @@ class JellyFishController:
         except Exception as e:
             raise JellyFishException("Error encountered while saving daily event schedule") from e
 
-    def add_zone_config(self, zone: str, config: ZoneConfig, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+    def add_zone(self, zone: str, config: ZoneConfig, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Adds a zone configuration"""
         configs = self.zone_configs
         if zone in configs:
@@ -453,7 +453,7 @@ class JellyFishController:
         configs[zone] = config
         self.save_zone_configs(configs, sync, timeout)
 
-    def delete_zone_config(self, zone: str, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+    def delete_zone(self, zone: str, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Deletes a zone configuration"""
         configs = self.zone_configs
         if zone not in configs:

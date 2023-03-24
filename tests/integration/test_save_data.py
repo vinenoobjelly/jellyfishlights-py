@@ -50,14 +50,14 @@ def test_save_and_delete_zones(controller):
         for pm in config.portMap:
             assert pm.ctlrName == hostname
     del_zone = "test-zone-1"
-    controller.delete_zone_config(del_zone)
+    controller.delete_zone(del_zone)
     assert set(["test-zone-2", "test-zone-3"]) == set(controller.zone_names)
     with pytest.raises(JellyFishException):
-        controller.delete_zone_config(del_zone)
-    controller.add_zone_config(del_zone, test_zones[del_zone])
+        controller.delete_zone(del_zone)
+    controller.add_zone(del_zone, test_zones[del_zone])
     assert set(test_zones.keys()) == set(controller.zone_names)
     with pytest.raises(JellyFishException):
-        controller.add_zone_config(del_zone, test_zones[del_zone])
+        controller.add_zone(del_zone, test_zones[del_zone])
     controller.save_zone_configs(orig_zones)
 
 

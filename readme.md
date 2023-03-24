@@ -10,6 +10,7 @@ To install:
 
 - Connect to a local JellyFish Lighting controller over websocket
 - Retrieve the following data:
+  - Controller hostname
   - Controller version
   - Zone configuration
   - Preset patterns and their configurations
@@ -23,13 +24,14 @@ To install:
 - Activate a custom pattern configuration
 - Create, update, and delete custom pattern configurations
 - Create, update, and delete schedule events (calendar and daily)
+- Create, update, and delete zone configurations
 
 ## Example
 
 This is example shows most of what this module can do and has important usage notes in the comments. Please read the whole thing!
 
 ```python
-from jellyfishlightspy import JellyFishController
+from jellyfishlightspy import JellyFishController, ScheduleEvent, ScheduleEventAction, ZoneConfig, PortMapping
 import logging
 
 # Debug logging exposes the JSON messages sent to and received from the controller
@@ -39,8 +41,11 @@ logging.basicConfig(level = logging.DEBUG)
 jfc = JellyFishController('192.168.0.245') # hostname also works
 jfc.connect()
 
+# Print the controller's hostname
+print(f"Connected to {jfc.controller_hostname}")
+
 # Print the controller's firmware version information
-print(f"Version: {jfc.controller_version}")
+print(f"Firmware version: {jfc.controller_version}")
 
 # Print the currently configured zones
 # USAGE NOTE: all attributes on the controller will return cached data when available.
@@ -54,10 +59,10 @@ print(f"Patterns: {jfc.pattern_names}")
 # Run a preset pattern on all zones
 # USAGE NOTE: Many commands have an optional zones parameter.
 # If not filled, it defaults to all zones
-jfc.apply_pattern('Special Effects/Red Waves')
+jfc.apply_pattern("Special Effects/Red Waves")
 
 # Set 'front-zone' and 'back-zone' to a solid color (white @ 100% brightness in this case)
-jfc.apply_color((255, 255, 255), 100, ['front-zone', 'back-zone'])
+jfc.apply_color((255, 255, 255), 100, ["front-zone", "back-zone"])
 
 # Set individual lights on the 'porch-zone' zone at 100% brightness
 lights = [
@@ -82,7 +87,7 @@ for name, state in jfc.get_zone_states().items():
 jfc.turn_off(sync=False)
 
 # Turn on the 'front-zone' zone - the lights will be in the same state as when they were last on
-jfc.turn_on(['front-zone'], timeout=5)
+jfc.turn_on(["front-zone"], timeout=5)
 
 # Retrieve a pattern configuration
 config = jfc.get_pattern_config("Colors/Blue")
@@ -108,8 +113,8 @@ jfc.save_pattern("Special Effects/Blue Waves", config)
 jfc.delete_pattern("Special Effects/Blue Waves")
 
 # Retrieve the calendar schedule
-events = jfc.calendar_schedule # jfc.daily_schedule retrieves the daily schedule
-for event in events:
+orig_events = jfc.calendar_schedule # jfc.daily_schedule retrieves the daily schedule
+for event in orig_events:
   print(event)
 
 # Add an event to the schedule
@@ -136,7 +141,30 @@ jfc.add_calendar_event(event)
 # To remove events you must send the updated full schedule of events
 jfc.save_calendar_schedule([event]) # This would delete all events other than what we just created
 jfc.save_calendar_schedule([]) # This would delete all events
-jfc.save_calendar_schedule(events) # This would restore the schedule to what we retrieved above (before modifying it)
+jfc.save_calendar_schedule(orig_events) # This would restore the schedule to what we retrieved above (before we modified it)
+
+# ADVANCED - change zone configurations
+orig_zones = jfc.zone_configs
+# Print current zone configurations
+for zone, config in orig_zones.items():
+  print(f"Zone '{zone}' config: {config}")
+# Add a new zone
+new_config = ZoneConfig([
+    # USAGE NOTE: the phyPort attribute maps as such to the ports on the controller (controller port->phyPort): 1->1, 2->2, 3->4, 4->8
+    # USAGE NOTE: zoneRGBStartIdx defaults to phyStartIdx. Setting it to the phyEndIdx value will reverse the direction
+    # USAGE NOTE: ctlrName defaults to the hostname of the controller you are currently connected to (jfc.controller_hostname)
+    # USAGE NOTE: All of the *Idx values are one less than what is displayed in the app! (e.g. a "1" value in the app is a "0" value here)
+    PortMapping(phyPort=1, phyStartIdx=0, phyEndIdx=10, zoneRGBStartIdx=10, ctlrName="my-controller-hostname"),
+    #USAGE NOTE: this is the short version that sets only the required fields: phyPort, phyStartIdx, and phyEndIdx
+    PortMapping(2, 0, 99)
+])
+jfc.add_zone("My new zone", new_config)
+# Delete the zone we just created
+jfc.delete_zone("My new zone")
+# Save the full set of all zone configurations at once
+jfc.save_zone_configs({"My new zone": new_config}) # This would result in a single zone (any other zones would be deleted)
+jfc.save_zone_configs({}) # This would delete all zone configurations
+jfc.save_zone_configs(orig_zones) # This would restore the zone configurations to what they were when we retrieved above (before we modified them)
 ```
 
 ## Contributing
