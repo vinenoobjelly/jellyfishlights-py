@@ -4,6 +4,7 @@ LOGGER = logging.getLogger(__package__)
 LOGGER.addHandler(logging.NullHandler())
 
 CONTROLLER_VERSION_DATA = "version"
+CONTROLLER_HOSTNAME_DATA = "hostName"
 ZONE_CONFIG_DATA = "zones"
 ZONE_STATE_DATA = "runPattern"
 PATTERN_LIST_DATA = "patternFileList"

@@ -14,6 +14,7 @@ from .const import (
     DEFAULT_TIMEOUT,
     DELETE_PATTERN_DATA,
     CONTROLLER_VERSION_DATA,
+    CONTROLLER_HOSTNAME_DATA,
 )
 
 class WebSocketMonitor:
@@ -67,9 +68,13 @@ class WebSocketMonitor:
                 data = data[CONTROLLER_VERSION_DATA]
                 self.__cache.controller_version_data.update_entry(data)
 
+            elif CONTROLLER_HOSTNAME_DATA in data:
+                hostname = data[CONTROLLER_HOSTNAME_DATA]
+                self.__cache.controller_hostname_data.update_entry(hostname)
+
             elif ZONE_CONFIG_DATA in data:
                 self.__cache.zone_config_data.clear()
-                entries = {zone: config for zone, config in data[ZONE_CONFIG_DATA].items()}
+                entries = data[ZONE_CONFIG_DATA]
                 self.__cache.zone_config_data.update_entries(entries)
 
             elif PATTERN_LIST_DATA in data:

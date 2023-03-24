@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from .model import ZoneState, PatternConfig, Pattern, ScheduleEvent
 from .const import (
     CONTROLLER_VERSION_DATA,
+    CONTROLLER_HOSTNAME_DATA,
     ZONE_CONFIG_DATA,
     PATTERN_LIST_DATA,
     PATTERN_CONFIG_DATA,
@@ -20,6 +21,11 @@ class GetRequest:
 class GetControllerVersionRequest(GetRequest):
     def __init__(self):
         super().__init__(CONTROLLER_VERSION_DATA)
+
+
+class GetControllerHostnameRequest(GetRequest):
+    def __init__(self):
+        super().__init__(CONTROLLER_HOSTNAME_DATA)
 
 
 class GetZoneConfigRequest(GetRequest):

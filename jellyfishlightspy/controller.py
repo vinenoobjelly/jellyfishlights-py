@@ -10,6 +10,7 @@ from .cache import JellyFishCache
 from .monitor import WebSocketMonitor
 from .requests import (
     GetControllerVersionRequest,
+    GetControllerHostnameRequest,
     GetZoneConfigRequest,
     GetZoneStateRequest,
     GetPatternListRequest,
@@ -60,6 +61,11 @@ class JellyFishController:
     def controller_version(self) -> ControllerVersion:
         """The controller's version information (returns cached data if available)"""
         return self.__cache.controller_version_data.get_entry() or self.get_controller_version()
+
+    @property
+    def controller_hostname(self) -> str:
+        """The controller's hostname (returns cached data if available)"""
+        return self.__cache.controller_hostname_data.get_entry() or self.get_controller_hostname()
 
     @property
     def zone_configs(self) -> Dict[str, ZoneConfig]:
@@ -164,7 +170,19 @@ class JellyFishController:
         except JellyFishException:
             raise
         except Exception as e:
-            raise JellyFishException("Error encountered while retrieving zone data") from e
+            raise JellyFishException("Error encountered while retrieving controller version information") from e
+
+    def get_controller_hostname(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> str:
+        """Retrieves the hostname from the controller"""
+        try:
+            self.__send(GetControllerHostnameRequest())
+            if not self.__cache.controller_hostname_data.await_update(timeout):
+                raise JellyFishException("Request for controller hostname timed out")
+            return self.__cache.controller_hostname_data.get_entry()
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException("Error encountered while retrieving controller hostname") from e
 
     def get_zone_names(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> List[str]:
         """Retrieves the list of current zones from the controller and caches the data"""
@@ -180,7 +198,7 @@ class JellyFishController:
         except JellyFishException:
             raise
         except Exception as e:
-            raise JellyFishException("Error encountered while retrieving zone data") from e
+            raise JellyFishException("Error encountered while retrieving zone config data") from e
 
     def get_pattern_names(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> List[str]:
         """Retrieves the list of current patterns from the controller and caches the data"""

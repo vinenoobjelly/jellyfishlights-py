@@ -5,6 +5,10 @@ def test_get_controller_version(controller):
     version = controller.controller_version
     assert version.ver and version.details
 
+def test_get_controller_hostname(controller):
+    hostname = controller.controller_hostname
+    assert hostname and type(hostname) is str
+
 def test_get_patterns(controller):
     patterns = controller.pattern_list
     assert patterns and len(patterns) > 0

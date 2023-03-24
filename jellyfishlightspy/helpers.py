@@ -29,6 +29,7 @@ class JellyFishException(Exception):
     """An exception raised when interacting with the jellyfishlights-py module"""
     pass
 
+
 class TimelyEvent(Event):
     """
     Event class extended to capture the last time it was set
@@ -36,7 +37,7 @@ class TimelyEvent(Event):
 
     def __init__(self):
         Event.__init__(self)
-        self.ts: int = 0
+        self.ts: float = 0
 
     def set(self) -> None:
         """
