@@ -103,6 +103,32 @@ def validate_patterns(patterns: List[str], valid_patterns: List[str]) -> List[st
         return patterns
     raise JellyFishException(f"Pattern name(s) {invalid_patterns} are invalid")
 
+def validate_zone_config(config: ZoneConfig) -> ZoneConfig:
+    """Validates zone configurations"""
+    if type(config.portMap) is not list or not all(isinstance(pm, PortMapping) for pm in config.portMap):
+        raise JellyFishException("ZoneConfig.portMap value is invalid (must be a list of PortMapping objects)")
+    for mapping in config.portMap:
+        validate_port_mapping(mapping)
+    pixel_ct = sum([abs(pm.phyEndIdx - pm.phyStartIdx) + 1 for pm in config.portMap])
+    if config.numPixels != pixel_ct:
+        raise JellyFishException(f"ZoneConfig.numPixels value {config.numPixels} is invalid (must equal the number of active pixels in the port mapping list: {pixel_ct})")
+    #TODO: add check to see if pixel ranges overlap?
+    return config
+
+def validate_port_mapping(mapping: PortMapping) -> PortMapping:
+    """Validates port mappings in zone configurations"""
+    if type(mapping.ctlrName) is not str or mapping.ctlrName == "":
+        raise JellyFishException(f"PortMapping.ctlrName value '{mapping.ctlrName}' is invalid (must be a non-empty string)")
+    if type(mapping.phyPort) is not int or mapping.phyPort < 1:
+        raise JellyFishException(f"PortMapping.phyPort value {mapping.phyPort} is invalid (must be an integer greater than zero)")
+    if type(mapping.phyStartIdx) is not int or mapping.phyStartIdx < 0:
+        raise JellyFishException(f"PortMapping.phyStartIdx value {mapping.phyStartIdx} is invalid (must be an integer zero or higher)")
+    if type(mapping.phyEndIdx) is not int or mapping.phyEndIdx < 0:
+        raise JellyFishException(f"PortMapping.phyEndIdx value {mapping.phyEndIdx} is invalid (must be an integer zero or higher)")
+    if mapping.zoneRGBStartIdx not in [mapping.phyStartIdx, mapping.phyEndIdx] and mapping.zoneRGBStartIdx != 0:
+        raise JellyFishException(f"PortMapping.zoneRGBStartIdx value {mapping.zoneRGBStartIdx} is invalid (must be 0 or equal the phyStartIdx ({mapping.phyStartIdx}) or phyEndIdx ({mapping.phyEndIdx}) value)")
+    return mapping
+
 def validate_pattern_config(config: PatternConfig, valid_zones: List[str]) -> PatternConfig:
     """Validates pattern configuration values"""
     if type(config.colors) is not list or not all((i is not None and type(i) is int and 0 <= i <= 255) for i in config.colors):
@@ -144,6 +170,7 @@ def validate_run_config(config: RunConfig) -> RunConfig:
         raise JellyFishException(f"RunConfig.effectValue value '{config.effectValue}' is invalid (must be an integer)")
     if type(config.rgbAdj) is not list or len(config.rgbAdj) != 3 or not all((i is not None and type(i) is int and 0 <= i <= 255) for i in config.rgbAdj):
         raise JellyFishException(f"RunConfig.rgbAdj value {config.rgbAdj} is invalid (must be a list of three integers between 0 and 255)")
+    return config
 
 def _date_str_is_valid(date_str: str) -> bool:
     try:
@@ -186,6 +213,7 @@ def validate_schedule_event_action(action: ScheduleEventAction, valid_patterns: 
             raise JellyFishException(f"ScheduleEventAction.patternFile value '{action.patternFile}' is invalid")
     if type(action.zones) is not list or not all(zone in valid_zones for zone in action.zones):
         raise JellyFishException(f"ScheduleEventAction.zones value(s) {action.zones} are invalid (valid zones are: {valid_zones})")
+    return action
 
 def _serialize_data_attributes(obj: dict) -> dict:
     """
@@ -215,7 +243,7 @@ def _default(obj):
 
 def to_json(obj: Any) -> str:
     """Serializes Python objects from this module to a JSON string compatible with the API"""
-    return json.dumps(obj, default=_default)
+    return json.dumps(obj, default=_default, separators=(',', ':'))
 
 def _object_hook(data):
     """Determines the object to instantiate based on its attributes"""

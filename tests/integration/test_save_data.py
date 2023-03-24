@@ -1,6 +1,6 @@
 import pytest
 import time
-from jellyfishlightspy.model import Pattern, ScheduleEvent, ScheduleEventAction
+from jellyfishlightspy.model import Pattern, ScheduleEvent, ScheduleEventAction, ZoneConfig, PortMapping
 from jellyfishlightspy.helpers import JellyFishException
 
 def test_save_and_delete_pattern(controller):
@@ -33,6 +33,34 @@ def test_save_and_delete_pattern(controller):
     # with pytest.raises(JellyFishException):
     #     controller.delete_pattern("INT_TESTS/")
 
+
+def test_save_and_delete_zones(controller):
+    orig_zones = controller.zone_configs
+    hostname = controller.controller_hostname
+    test_zones = {
+        "test-zone-1": ZoneConfig([PortMapping(1, 0, 10),PortMapping(1, 11, 20)]),
+        "test-zone-2": ZoneConfig([PortMapping(1, 21, 50)]),
+        "test-zone-3": ZoneConfig([PortMapping(1, 100, 51, 51),PortMapping(2, 0, 100)])
+    }
+    controller.save_zone_configs(test_zones)
+    assert set(test_zones.keys()) == set(controller.zone_names)
+    for zone, config in test_zones.items():
+        assert config.numPixels == controller.zone_configs[zone].numPixels
+        assert len(config.portMap) == len(controller.zone_configs[zone].portMap)
+        for pm in config.portMap:
+            assert pm.ctlrName == hostname
+    del_zone = "test-zone-1"
+    controller.delete_zone_config(del_zone)
+    assert set(["test-zone-2", "test-zone-3"]) == set(controller.zone_names)
+    with pytest.raises(JellyFishException):
+        controller.delete_zone_config(del_zone)
+    controller.add_zone_config(del_zone, test_zones[del_zone])
+    assert set(test_zones.keys()) == set(controller.zone_names)
+    with pytest.raises(JellyFishException):
+        controller.add_zone_config(del_zone, test_zones[del_zone])
+    controller.save_zone_configs(orig_zones)
+
+
 def test_get_and_set_calendar_schedule(controller):
     orig_events = controller.get_calendar_schedule()
     test_pattern = controller.pattern_names[0]
@@ -64,6 +92,7 @@ def test_get_and_set_calendar_schedule(controller):
     assert len(controller.calendar_schedule) == len(orig_events)
     assert not next((e for e in controller.calendar_schedule if e.label == e1.label), False)
     assert not next((e for e in controller.calendar_schedule if e.label == e2.label), False)
+
 
 def test_get_and_set_daily_schedule(controller):
     orig_events = controller.get_daily_schedule()

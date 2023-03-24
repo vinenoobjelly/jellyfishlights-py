@@ -73,14 +73,16 @@ class WebSocketMonitor:
                 self.__cache.controller_hostname_data.update_entry(hostname)
 
             elif ZONE_CONFIG_DATA in data:
-                self.__cache.zone_config_data.clear()
                 entries = data[ZONE_CONFIG_DATA]
                 self.__cache.zone_config_data.update_entries(entries)
+                for deleted in list(set(self.__cache.zone_config_data.get_all_entries()) - set(entries)):
+                    self.__cache.zone_config_data.delete_entry(deleted)
 
             elif PATTERN_LIST_DATA in data:
-                self.__cache.pattern_list_data.clear()
                 entries = {str(pattern): pattern for pattern in data[PATTERN_LIST_DATA]}
                 self.__cache.pattern_list_data.update_entries(entries)
+                for deleted in list(set(self.__cache.pattern_list_data.get_all_entries()) - set(entries)):
+                    self.__cache.pattern_list_data.delete_entry(deleted)
 
             elif ZONE_STATE_DATA in data:
                 state = data[ZONE_STATE_DATA]

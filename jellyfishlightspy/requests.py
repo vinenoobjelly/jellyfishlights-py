@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from types import SimpleNamespace
-from .model import ZoneState, PatternConfig, Pattern, ScheduleEvent
+from .model import ZoneConfig, ZoneState, PatternConfig, Pattern, ScheduleEvent
 from .const import (
     CONTROLLER_VERSION_DATA,
     CONTROLLER_HOSTNAME_DATA,
@@ -64,7 +64,14 @@ class GetDailyScheduleRequest(GetRequest):
 
 class SetRequest:
     def __init__(self):
-        self.cmd = 'toCtlrSet'
+        self.cmd = "toCtlrSet"
+
+
+class SetZoneConfigRequest(SetRequest):
+    def __init__(self, zone_configs: Dict[str, ZoneConfig]):
+        super().__init__()
+        self.save = True
+        self.zones = zone_configs
 
 
 class SetZoneStateRequest(SetRequest):

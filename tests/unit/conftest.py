@@ -95,11 +95,11 @@ def set_pattern_config_req_json(pc_json) -> str:
 
 @pytest.fixture
 def zc_obj() -> ZoneConfig:
-    return ZoneConfig(26, [PortMapping("test-ctlr", 1, 2, 3, 4),PortMapping("test-ctlr", 5, 6, 7, 8)])
+    return ZoneConfig([PortMapping(1, 0, 10, 0, "test-ctlr"),PortMapping(1, 11, 20, 20, "test-ctlr")], 21)
 
 @pytest.fixture
 def zc_json() -> str:
-    return '{"numPixels":26,"portMap":[{"ctlrName":"test-ctlr","phyEndIdx":1,"phyPort":2,"phyStartIdx":3,"zoneRGBStartIdx":4}, {"ctlrName":"test-ctlr","phyEndIdx":5,"phyPort":6,"phyStartIdx":7,"zoneRGBStartIdx":8}]}'
+    return '{"numPixels":21,"portMap":[{"ctlrName":"test-ctlr","phyPort":1,"phyStartIdx":0,"phyEndIdx":10,"zoneRGBStartIdx":0}, {"ctlrName":"test-ctlr","phyPort":1,"phyStartIdx":11,"phyEndIdx":20,"zoneRGBStartIdx":20}]}'
 
 @pytest.fixture
 def se_obj() -> ScheduleEvent:

@@ -13,27 +13,27 @@ class ControllerVersion(ModelBase):
 
 
 class PortMapping(ModelBase):
-    def __init__(self, ctlrName: str, phyEndIdx: int, phyPort: int, phyStartIdx: int, zoneRGBStartIdx: int):
+    def __init__(self, phyPort: int, phyStartIdx: int, phyEndIdx: int, zoneRGBStartIdx: int=None, ctlrName: str=None):
         self.ctlrName = ctlrName
-        self.phyEndIdx = phyEndIdx
         self.phyPort = phyPort
         self.phyStartIdx = phyStartIdx
-        self.zoneRGBStartIdx = zoneRGBStartIdx
+        self.phyEndIdx = phyEndIdx
+        self.zoneRGBStartIdx = self.phyStartIdx if zoneRGBStartIdx is None else zoneRGBStartIdx
 
 
 class ZoneConfig(ModelBase):
-    def __init__(self, numPixels: int, portMap: List[PortMapping]):
-        self.numPixels = numPixels
+    def __init__(self, portMap: List[PortMapping], numPixels: int=None):
+        self.numPixels = numPixels or sum([abs(pm.phyEndIdx - pm.phyStartIdx) + 1 for pm in portMap])
         self.portMap = portMap
 
 
 class RunConfig(ModelBase):
-    def __init__(self, speed: int=0, brightness: int=100, effect: str="No Effect", effectValue: int=0, rgbAdj: List[int]=[100, 100, 100]) -> None:
+    def __init__(self, speed: int=0, brightness: int=100, effect: str="No Effect", effectValue: int=0, rgbAdj: List[int]=None) -> None:
         self.speed = speed
         self.brightness = brightness
         self.effect = effect
         self.effectValue = effectValue
-        self.rgbAdj = rgbAdj
+        self.rgbAdj = rgbAdj or [100, 100, 100]
 
 
 class Pattern(ModelBase):
@@ -56,7 +56,7 @@ class Pattern(ModelBase):
 
 
 class PatternConfig(ModelBase):
-    def __init__(self, type: str, colors: List[int], runData: RunConfig=None, direction: str="Center", spaceBetweenPixels: int=2, numOfLeds: int=1, skip: int=2, effectBetweenPixels: str="No Color Transform", colorPos: List[int]=[-1], cursor: int=-1, ledOnPos: Dict[str, int]={}, soffitZone: str="") -> None:
+    def __init__(self, type: str, colors: List[int], runData: RunConfig=None, direction: str="Center", spaceBetweenPixels: int=2, numOfLeds: int=1, skip: int=2, effectBetweenPixels: str="No Color Transform", colorPos: List[int]=None, cursor: int=-1, ledOnPos: Dict[str, int]=None, soffitZone: str="") -> None:
         self.type = type
         self.colors = colors
         self.runData = runData
@@ -65,10 +65,10 @@ class PatternConfig(ModelBase):
         self.numOfLeds = numOfLeds
         self.skip = skip
         self.effectBetweenPixels = effectBetweenPixels
-        self.colorPos = colorPos
+        self.colorPos = colorPos or [-1]
         self.cursor = cursor
         # These attributes appear to be optional and are only seen on soffit patterns
-        self.ledOnPos = ledOnPos
+        self.ledOnPos = ledOnPos or {}
         self.soffitZone = soffitZone
 
 

@@ -1,7 +1,7 @@
 import pytest
 import time
 from threading import Thread
-from jellyfishlightspy.model import Pattern, PatternConfig, RunConfig
+from jellyfishlightspy.model import Pattern, PatternConfig, RunConfig, ZoneConfig, PortMapping
 from jellyfishlightspy.helpers import (
     JellyFishException,
     TimelyEvent,
@@ -12,6 +12,8 @@ from jellyfishlightspy.helpers import (
     validate_pattern_config,
     validate_schedule_event,
     validate_schedule_event_action,
+    validate_port_mapping,
+    validate_zone_config,
 )
 
 # Note: tests in model.py sufficiently cover from_json, to_json, _default, and _object_hook
@@ -28,6 +30,7 @@ def test_validate_brightness():
         validate_brightness(None)
     with pytest.raises(JellyFishException):
         validate_brightness("256")
+
 
 def test_validate_rgb():
     validate_rgb((0,0,0))
@@ -54,12 +57,99 @@ def test_validate_rgb():
     with pytest.raises(JellyFishException):
         validate_rgb(100)
 
+
+def test_validate_zone_config():
+    config = ZoneConfig([PortMapping(1, 0, 10, 0, "test-ctlr"),PortMapping(1, 11, 20, 20, "test-ctlr")], 21)
+    validate_zone_config(config)
+
+    orig_map = config.portMap
+    config.portMap = tuple(orig_map)
+    with pytest.raises(JellyFishException):
+        validate_zone_config(config)
+    config.portMap = [1, 2]
+    with pytest.raises(JellyFishException):
+        validate_zone_config(config)
+    config.portMap = orig_map
+    validate_zone_config(config)
+
+    config.numPixels = 20
+    with pytest.raises(JellyFishException):
+        validate_zone_config(config)
+    config.numPixels = 21
+    validate_zone_config(config)
+
+
+def test_validate_port_mapping():
+    pm = PortMapping(1, 0, 10, 0, "test-ctlr")
+    validate_port_mapping(pm)
+
+    pm.phyPort = 0
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.phyPort = "1"
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.phyPort = None
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.phyPort = 1
+    validate_port_mapping(pm)
+
+    pm.phyStartIdx = -1
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.phyStartIdx = "0"
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.phyStartIdx = None
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.phyStartIdx = 0
+    validate_port_mapping(pm)
+
+    pm.phyEndIdx = -1
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.phyEndIdx = "0"
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.phyEndIdx = None
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.phyEndIdx = 10
+    validate_port_mapping(pm)
+
+    pm.ctlrName = None
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.ctlrName = 1
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.ctlrName = "test-ctlr"
+    validate_port_mapping(pm)
+
+    pm.zoneRGBStartIdx = 2
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.zoneRGBStartIdx = "10"
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.zoneRGBStartIdx = None
+    with pytest.raises(JellyFishException):
+        validate_port_mapping(pm)
+    pm.zoneRGBStartIdx = 0
+    validate_port_mapping(pm)
+    pm.zoneRGBStartIdx = 10
+    validate_port_mapping(pm)
+
+
 def test_validate_patterns():
     valid_patterns = ["one/plus two", "three and/four"]
     validate_patterns([valid_patterns[0]], valid_patterns)
     validate_patterns(valid_patterns, valid_patterns)
     with pytest.raises(JellyFishException):
         validate_patterns(["bad/pattern"], valid_patterns)
+
 
 def test_validate_pattern_config():
     config = PatternConfig(
@@ -182,12 +272,14 @@ def test_validate_pattern_config():
     with pytest.raises(JellyFishException):
         assert validate_pattern_config(config, ["test-zone-1"])
 
+
 def test_validate_zones(zc_obj):
     valid_zones = ["zone1", "zone2"]
     validate_zones(valid_zones, valid_zones)
     validate_zones([valid_zones[0]], valid_zones)
     with pytest.raises(JellyFishException):
         validate_zones(["bad/zone"], valid_zones)
+
 
 def test_validate_schedule_event(se_obj):
     valid_patterns = [se_obj.actions[0].patternFile]
@@ -306,6 +398,7 @@ def test_validate_schedule_event_action(se_obj):
     action.zones = valid_zones
     with pytest.raises(JellyFishException):
         validate_schedule_event_action(action, valid_patterns, ["bad-zone"])
+
 
 def test_timely_event():
     event = TimelyEvent()

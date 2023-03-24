@@ -18,6 +18,7 @@ from .requests import (
     GetCalendarScheduleRequest,
     GetDailyScheduleRequest,
     SetZoneStateRequest,
+    SetZoneConfigRequest,
     SetPatternConfigRequest,
     SetCalendarScheduleRequest,
     SetDailyScheduleRequest,
@@ -28,13 +29,12 @@ from .helpers import (
     validate_rgb,
     validate_brightness,
     validate_zones,
+    validate_zone_config,
     validate_patterns,
     validate_pattern_config,
     validate_schedule_event,
     to_json,
 )
-
-#TODO: adding and setting zones
 
 # Silence logging - we do our own
 websocket.enableTrace(True, level="FATAL")
@@ -444,3 +444,37 @@ class JellyFishController:
             raise
         except Exception as e:
             raise JellyFishException("Error encountered while saving daily event schedule") from e
+
+    def add_zone_config(self, zone: str, config: ZoneConfig, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+        """Adds a zone configuration"""
+        configs = self.zone_configs
+        if zone in configs:
+            raise JellyFishException(f"Error encountered while adding a new zone configuration: zone name '{zone}' already exists")
+        configs[zone] = config
+        self.save_zone_configs(configs, sync, timeout)
+
+    def delete_zone_config(self, zone: str, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+        """Deletes a zone configuration"""
+        configs = self.zone_configs
+        if zone not in configs:
+            raise JellyFishException(f"Error encountered while adding a deleting zone configuration: zone name '{zone}' does not exist")
+        del configs[zone]
+        self.save_zone_configs(configs, sync, timeout)
+
+    def save_zone_configs(self, zone_configs: Dict[str, ZoneConfig], sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+        """Saves zone configurations. WARNING: this list must include all zones! Any zones not included will be deleted"""
+        try:
+            # Do some reasonable data defaulting
+            for config in zone_configs.values():
+                config.numPixels = 0
+                for mapping in config.portMap:
+                    mapping.ctlrName = mapping.ctlrName or self.controller_hostname
+                    config.numPixels += abs(mapping.phyEndIdx - mapping.phyStartIdx) + 1
+                validate_zone_config(config)
+            self.__send(SetZoneConfigRequest(zone_configs))
+            if sync and not self.__cache.zone_config_data.await_update(timeout, zone_configs.keys()):
+                raise JellyFishException("Request to save zone configurations timed out")
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException("Error encountered while saving zone configurations") from e
