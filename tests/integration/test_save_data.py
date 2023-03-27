@@ -3,6 +3,15 @@ import time
 from jellyfishlightspy.model import Pattern, ScheduleEvent, ScheduleEventAction, ZoneConfig, PortMapping
 from jellyfishlightspy.helpers import JellyFishException
 
+def test_set_controller_name(controller):
+    test_name = "**INT TEST** ctlrName"
+    orig_name = controller.controller_name
+    assert test_name != orig_name
+    controller.set_controller_name(test_name)
+    assert controller.controller_name == test_name
+    controller.set_controller_name(orig_name)
+    assert controller.controller_name == orig_name
+
 def test_save_and_delete_pattern(controller):
     config = controller.get_pattern_config("Colors/Blue")
     config.colors.extend([0, 0, 0])
@@ -42,7 +51,7 @@ def test_save_and_delete_zones(controller):
         "test-zone-2": ZoneConfig([PortMapping(1, 21, 50)]),
         "test-zone-3": ZoneConfig([PortMapping(1, 100, 51, 51),PortMapping(2, 0, 100)])
     }
-    controller.save_zone_configs(test_zones)
+    controller.set_zone_configs(test_zones)
     assert set(test_zones.keys()) == set(controller.zone_names)
     for zone, config in test_zones.items():
         assert config.numPixels == controller.zone_configs[zone].numPixels
@@ -58,7 +67,7 @@ def test_save_and_delete_zones(controller):
     assert set(test_zones.keys()) == set(controller.zone_names)
     with pytest.raises(JellyFishException):
         controller.add_zone(del_zone, test_zones[del_zone])
-    controller.save_zone_configs(orig_zones)
+    controller.set_zone_configs(orig_zones)
 
 
 def test_get_and_set_calendar_schedule(controller):
@@ -85,10 +94,10 @@ def test_get_and_set_calendar_schedule(controller):
     assert next((e for e in controller.calendar_schedule if e.label == e1.label), False)
     events = controller.calendar_schedule
     events.append(e2)
-    controller.save_calendar_schedule(events)
+    controller.set_calendar_schedule(events)
     assert next((e for e in controller.calendar_schedule if e.label == e1.label), False)
     assert next((e for e in controller.calendar_schedule if e.label == e2.label), False)
-    controller.save_calendar_schedule(orig_events)
+    controller.set_calendar_schedule(orig_events)
     assert len(controller.calendar_schedule) == len(orig_events)
     assert not next((e for e in controller.calendar_schedule if e.label == e1.label), False)
     assert not next((e for e in controller.calendar_schedule if e.label == e2.label), False)
@@ -118,10 +127,10 @@ def test_get_and_set_daily_schedule(controller):
     assert next((e for e in controller.daily_schedule if e.label == e1.label), False)
     events = controller.daily_schedule
     events.append(e2)
-    controller.save_daily_schedule(events)
+    controller.set_daily_schedule(events)
     assert next((e for e in controller.daily_schedule if e.label == e1.label), False)
     assert next((e for e in controller.daily_schedule if e.label == e2.label), False)
-    controller.save_daily_schedule(orig_events)
+    controller.set_daily_schedule(orig_events)
     assert len(controller.daily_schedule) == len(orig_events)
     assert not next((e for e in controller.daily_schedule if e.label == e1.label), False)
     assert not next((e for e in controller.daily_schedule if e.label == e2.label), False)

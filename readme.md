@@ -10,8 +10,7 @@ To install:
 
 - Connect to a local JellyFish Lighting controller over websocket
 - Retrieve the following data:
-  - Controller hostname
-  - Controller version
+  - Controller name, hostname, and version
   - Zone configuration
   - Preset patterns and their configurations
   - Zone states
@@ -25,10 +24,11 @@ To install:
 - Create, update, and delete custom pattern configurations
 - Create, update, and delete schedule events (calendar and daily)
 - Create, update, and delete zone configurations
+- Set the controller's hostname
 
 ## Example
 
-This is example shows most of what this module can do and has important usage notes in the comments. Please read the whole thing!
+This example shows most of what this module can do and has important usage notes in the comments. Please read the whole thing!
 
 ```python
 from jellyfishlightspy import JellyFishController, ScheduleEvent, ScheduleEventAction, ZoneConfig, PortMapping
@@ -41,8 +41,8 @@ logging.basicConfig(level = logging.DEBUG)
 jfc = JellyFishController('192.168.0.245') # hostname also works
 jfc.connect()
 
-# Print the controller's hostname
-print(f"Connected to {jfc.controller_hostname}")
+# Print the controller's name and hostname
+print(f"Connected to JellyFish Lighting controller {jfc.controller_name} ({jfc.controller_hostname})")
 
 # Print the controller's firmware version information
 print(f"Firmware version: {jfc.controller_version}")
@@ -88,6 +88,9 @@ jfc.turn_off(sync=False)
 
 # Turn on the 'front-zone' zone - the lights will be in the same state as when they were last on
 jfc.turn_on(["front-zone"], timeout=5)
+
+# Change the controller's user-defined name
+jfc.set_controller_name("My JellyFish Controller")
 
 # Retrieve a pattern configuration
 config = jfc.get_pattern_config("Colors/Blue")
@@ -139,9 +142,9 @@ event = ScheduleEvent(
 jfc.add_calendar_event(event)
 
 # To remove events you must send the updated full schedule of events
-jfc.save_calendar_schedule([event]) # This would delete all events other than what we just created
-jfc.save_calendar_schedule([]) # This would delete all events
-jfc.save_calendar_schedule(orig_events) # This would restore the schedule to what we retrieved above (before we modified it)
+jfc.set_calendar_schedule([event]) # This would delete all events other than what we just created
+jfc.set_calendar_schedule([]) # This would delete all events
+jfc.set_calendar_schedule(orig_events) # This would restore the schedule to what we retrieved above (before we modified it)
 
 # ADVANCED - change zone configurations
 orig_zones = jfc.zone_configs
@@ -162,9 +165,9 @@ jfc.add_zone("My new zone", new_config)
 # Delete the zone we just created
 jfc.delete_zone("My new zone")
 # Save the full set of all zone configurations at once
-jfc.save_zone_configs({"My new zone": new_config}) # This would result in a single zone (any other zones would be deleted)
-jfc.save_zone_configs({}) # This would delete all zone configurations
-jfc.save_zone_configs(orig_zones) # This would restore the zone configurations to what they were when we retrieved above (before we modified them)
+jfc.set_zone_configs({"My new zone": new_config}) # This would result in a single zone (any other zones would be deleted)
+jfc.set_zone_configs({}) # This would delete all zone configurations
+jfc.set_zone_configs(orig_zones) # This would restore the zone configurations to what we retrieved above (before we modified them)
 ```
 
 ## Contributing

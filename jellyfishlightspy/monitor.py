@@ -15,6 +15,7 @@ from .const import (
     DELETE_PATTERN_DATA,
     CONTROLLER_VERSION_DATA,
     CONTROLLER_HOSTNAME_DATA,
+    CONTROLLER_NAME_DATA,
 )
 
 class WebSocketMonitor:
@@ -71,6 +72,10 @@ class WebSocketMonitor:
             elif CONTROLLER_HOSTNAME_DATA in data:
                 hostname = data[CONTROLLER_HOSTNAME_DATA]
                 self.__cache.controller_hostname_data.update_entry(hostname)
+
+            elif CONTROLLER_NAME_DATA in data:
+                ctlr_name = data[CONTROLLER_NAME_DATA]
+                self.__cache.controller_name_data.update_entry(ctlr_name)
 
             elif ZONE_CONFIG_DATA in data:
                 entries = data[ZONE_CONFIG_DATA]

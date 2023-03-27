@@ -118,6 +118,7 @@ class JellyFishCache:
     def __init__(self):
         self.controller_version_data: DataCache[ControllerVersion] = DataCache()
         self.controller_hostname_data: DataCache[str] = DataCache()
+        self.controller_name_data: DataCache[str] = DataCache()
         self.zone_config_data: DataCache[ZoneConfig] = DataCache()
         self.zone_state_data: DataCache[ZoneState] = DataCache()
         self.pattern_list_data: DataCache[Pattern] = DataCache()

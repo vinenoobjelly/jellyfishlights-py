@@ -8,15 +8,18 @@ from .const import LOGGER, DEFAULT_TIMEOUT
 from .model import Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, ControllerVersion, ScheduleEvent
 from .cache import JellyFishCache
 from .monitor import WebSocketMonitor
+from .helpers import JellyFishException, to_json
 from .requests import (
     GetControllerVersionRequest,
     GetControllerHostnameRequest,
+    GetControllerNameRequest,
     GetZoneConfigRequest,
     GetZoneStateRequest,
     GetPatternListRequest,
     GetPatternConfigRequest,
     GetCalendarScheduleRequest,
     GetDailyScheduleRequest,
+    SetControllerNameRequest,
     SetZoneStateRequest,
     SetZoneConfigRequest,
     SetPatternConfigRequest,
@@ -24,8 +27,7 @@ from .requests import (
     SetDailyScheduleRequest,
     DeletePatternRequest,
 )
-from .helpers import (
-    JellyFishException,
+from .validators import (
     validate_rgb,
     validate_brightness,
     validate_zones,
@@ -33,7 +35,6 @@ from .helpers import (
     validate_patterns,
     validate_pattern_config,
     validate_schedule_event,
-    to_json,
 )
 
 # Silence logging - we do our own
@@ -66,6 +67,11 @@ class JellyFishController:
     def controller_hostname(self) -> str:
         """The controller's hostname (returns cached data if available)"""
         return self.__cache.controller_hostname_data.get_entry() or self.get_controller_hostname()
+
+    @property
+    def controller_name(self) -> str:
+        """The controller's user-defined name (returns cached data if available)"""
+        return self.__cache.controller_name_data.get_entry() or self.get_controller_name()
 
     @property
     def zone_configs(self) -> Dict[str, ZoneConfig]:
@@ -183,6 +189,18 @@ class JellyFishController:
             raise
         except Exception as e:
             raise JellyFishException("Error encountered while retrieving controller hostname") from e
+
+    def get_controller_name(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> str:
+        """Retrieves the user-defined name for the controller"""
+        try:
+            self.__send(GetControllerNameRequest())
+            if not self.__cache.controller_name_data.await_update(timeout):
+                raise JellyFishException("Request for controller name timed out")
+            return self.__cache.controller_name_data.get_entry()
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException("Error encountered while retrieving controller name") from e
 
     def get_zone_names(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> List[str]:
         """Retrieves the list of current zones from the controller and caches the data"""
@@ -407,9 +425,9 @@ class JellyFishController:
         """Adds a calendar event to the schedule"""
         events = self.calendar_schedule
         events.append(event)
-        self.save_calendar_schedule(events, sync, timeout)
+        self.set_calendar_schedule(events, sync, timeout)
 
-    def save_calendar_schedule(self, events: List[ScheduleEvent], sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+    def set_calendar_schedule(self, events: List[ScheduleEvent], sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Saves the schedule of calendar events. WARNING: this list must include all calendar events in the entire schedule! Any events not included will be deleted"""
         try:
             patterns = self.pattern_names
@@ -428,9 +446,9 @@ class JellyFishController:
         """Adds a daily event to the schedule"""
         events = self.daily_schedule
         events.append(event)
-        self.save_daily_schedule(events, sync, timeout)
+        self.set_daily_schedule(events, sync, timeout)
 
-    def save_daily_schedule(self, events: List[ScheduleEvent], sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+    def set_daily_schedule(self, events: List[ScheduleEvent], sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Saves the schedule of daily events. WARNING: this list must include all daily events in the entire schedule! Any events not included will be deleted"""
         try:
             patterns = self.pattern_names
@@ -449,19 +467,19 @@ class JellyFishController:
         """Adds a zone configuration"""
         configs = self.zone_configs
         if zone in configs:
-            raise JellyFishException(f"Error encountered while adding a new zone configuration: zone name '{zone}' already exists")
+            raise JellyFishException(f"Error encountered while adding a zone configuration: zone name '{zone}' already exists")
         configs[zone] = config
-        self.save_zone_configs(configs, sync, timeout)
+        self.set_zone_configs(configs, sync, timeout)
 
     def delete_zone(self, zone: str, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Deletes a zone configuration"""
         configs = self.zone_configs
         if zone not in configs:
-            raise JellyFishException(f"Error encountered while adding a deleting zone configuration: zone name '{zone}' does not exist")
+            raise JellyFishException(f"Error encountered while deleting a zone configuration: zone name '{zone}' does not exist")
         del configs[zone]
-        self.save_zone_configs(configs, sync, timeout)
+        self.set_zone_configs(configs, sync, timeout)
 
-    def save_zone_configs(self, zone_configs: Dict[str, ZoneConfig], sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+    def set_zone_configs(self, zone_configs: Dict[str, ZoneConfig], sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Saves zone configurations. WARNING: this list must include all zones! Any zones not included will be deleted"""
         try:
             # Do some reasonable data defaulting
@@ -473,8 +491,19 @@ class JellyFishController:
                 validate_zone_config(config)
             self.__send(SetZoneConfigRequest(zone_configs))
             if sync and not self.__cache.zone_config_data.await_update(timeout, zone_configs.keys()):
-                raise JellyFishException("Request to save zone configurations timed out")
+                raise JellyFishException("Request to set zone configurations timed out")
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException("Error encountered while saving zone configurations") from e
+
+    def set_controller_name(self, name: str, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+        """Sets the user-defined name of the controller"""
+        try:
+            self.__send(SetControllerNameRequest(name))
+            if sync and not self.__cache.controller_name_data.await_update(timeout):
+                raise JellyFishException("Request to set controller name timed out")
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException("Error encountered while setting controller name") from e

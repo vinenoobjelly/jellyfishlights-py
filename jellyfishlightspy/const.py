@@ -5,6 +5,7 @@ LOGGER.addHandler(logging.NullHandler())
 
 CONTROLLER_VERSION_DATA = "version"
 CONTROLLER_HOSTNAME_DATA = "hostName"
+CONTROLLER_NAME_DATA = "ctlrName"
 ZONE_CONFIG_DATA = "zones"
 ZONE_STATE_DATA = "runPattern"
 PATTERN_LIST_DATA = "patternFileList"

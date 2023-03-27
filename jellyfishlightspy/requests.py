@@ -4,6 +4,7 @@ from .model import ZoneConfig, ZoneState, PatternConfig, Pattern, ScheduleEvent
 from .const import (
     CONTROLLER_VERSION_DATA,
     CONTROLLER_HOSTNAME_DATA,
+    CONTROLLER_NAME_DATA,
     ZONE_CONFIG_DATA,
     PATTERN_LIST_DATA,
     PATTERN_CONFIG_DATA,
@@ -26,6 +27,11 @@ class GetControllerVersionRequest(GetRequest):
 class GetControllerHostnameRequest(GetRequest):
     def __init__(self):
         super().__init__(CONTROLLER_HOSTNAME_DATA)
+
+
+class GetControllerNameRequest(GetRequest):
+    def __init__(self):
+        super().__init__(CONTROLLER_NAME_DATA)
 
 
 class GetZoneConfigRequest(GetRequest):
@@ -65,6 +71,11 @@ class GetDailyScheduleRequest(GetRequest):
 class SetRequest:
     def __init__(self):
         self.cmd = "toCtlrSet"
+
+class SetControllerNameRequest(SetRequest):
+    def __init__(self, name: str):
+        super().__init__()
+        self.ctlrName = name
 
 
 class SetZoneConfigRequest(SetRequest):

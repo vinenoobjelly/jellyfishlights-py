@@ -1,5 +1,5 @@
 from jellyfishlightspy.model import Pattern, ZoneConfig, PortMapping, ZoneState, PatternConfig
-from jellyfishlightspy.helpers import validate_pattern_config
+from jellyfishlightspy.validators import validate_pattern_config
 
 def test_get_controller_version(controller):
     version = controller.controller_version
@@ -8,6 +8,10 @@ def test_get_controller_version(controller):
 def test_get_controller_hostname(controller):
     hostname = controller.controller_hostname
     assert hostname and type(hostname) is str
+
+def test_get_controller_name(controller):
+    name = controller.controller_name
+    assert name and type(name) is str
 
 def test_get_patterns(controller):
     patterns = controller.pattern_list
