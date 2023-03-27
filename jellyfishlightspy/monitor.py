@@ -102,9 +102,12 @@ class WebSocketMonitor:
             elif PATTERN_CONFIG_DATA in data:
                 data = data[PATTERN_CONFIG_DATA]
                 pattern = Pattern(data["folders"], data["name"])
-                if not pattern.is_folder:
-                    config = data["jsonData"]
-                    self.__cache.pattern_config_data.update_entry(config, str(pattern))
+                if pattern.is_folder:
+                    return
+                config = data["jsonData"]
+                self.__cache.pattern_config_data.update_entry(config, str(pattern))
+                # Add to the pattern list if it's new
+                if self.__cache.pattern_list_data.size > 0 and self.__cache.pattern_list_data.get_entry(str(pattern)) is None:
                     self.__cache.pattern_list_data.update_entry(pattern, str(pattern))
 
             elif DELETE_PATTERN_DATA in data:
