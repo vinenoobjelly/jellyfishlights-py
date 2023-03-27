@@ -6,6 +6,7 @@ LOGGER.addHandler(logging.NullHandler())
 FIRMWARE_VERSION_DATA = "version"
 HOSTNAME_DATA = "hostName"
 NAME_DATA = "ctlrName"
+TIME_CONFIG_DATA = "timeConfig"
 ZONE_CONFIG_DATA = "zones"
 ZONE_STATE_DATA = "runPattern"
 PATTERN_LIST_DATA = "patternFileList"

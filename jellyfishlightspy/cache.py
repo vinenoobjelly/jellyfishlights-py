@@ -2,6 +2,7 @@ import time
 from threading import Lock
 from typing import Dict, List, Optional, Generic, TypeVar
 from .helpers import TimelyEvent, copy
+from .model import FirmwareVersion, TimeConfig, ZoneConfig, ZoneState, Pattern, PatternConfig, ScheduleEvent
 
 T = TypeVar('T')
 
@@ -116,9 +117,10 @@ class JellyFishCache:
     """Responsible for caching all data received from the controller and coordinating data access"""
 
     def __init__(self):
-        self.firmware_version_data: DataCache[FirmwareVersion] = DataCache()
-        self.hostname_data: DataCache[str] = DataCache()
         self.name_data: DataCache[str] = DataCache()
+        self.hostname_data: DataCache[str] = DataCache()
+        self.firmware_version_data: DataCache[FirmwareVersion] = DataCache()
+        self.time_config_data: DataCache[TimeConfig] = DataCache()
         self.zone_config_data: DataCache[ZoneConfig] = DataCache()
         self.zone_state_data: DataCache[ZoneState] = DataCache()
         self.pattern_list_data: DataCache[Pattern] = DataCache()

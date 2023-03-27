@@ -5,14 +5,15 @@ import websocket
 from typing import Dict, List, Tuple, Optional, Any
 from threading import Thread
 from .const import LOGGER, DEFAULT_TIMEOUT
-from .model import Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, FirmwareVersion, ScheduleEvent
+from .model import TimeConfig, Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, FirmwareVersion, ScheduleEvent
 from .cache import JellyFishCache
 from .monitor import WebSocketMonitor
 from .helpers import JellyFishException, to_json
 from .requests import (
-    GetFirmwareVersionRequest,
-    GetHostnameRequest,
     GetNameRequest,
+    GetHostnameRequest,
+    GetFirmwareVersionRequest,
+    GetTimeConfigRequest,
     GetZoneConfigRequest,
     GetZoneStateRequest,
     GetPatternListRequest,
@@ -72,6 +73,11 @@ class JellyFishController:
     def firmware_version(self) -> FirmwareVersion:
         """The controller's version information (returns cached data if available)"""
         return self.__cache.firmware_version_data.get_entry() or self.get_firmware_version()
+
+    @property
+    def time_config(self) -> TimeConfig:
+        """The controller's timezone configuration (returns cached data if available)"""
+        return self.__cache.time_config_data.get_entry() or self.get_time_config()
 
     @property
     def zone_configs(self) -> Dict[str, ZoneConfig]:
@@ -197,6 +203,18 @@ class JellyFishController:
             if not self.__cache.firmware_version_data.await_update(timeout):
                 raise JellyFishException("Request for controller version information timed out")
             return self.__cache.firmware_version_data.get_entry()
+        except JellyFishException:
+            raise
+        except Exception as e:
+            raise JellyFishException("Error encountered while retrieving controller version information") from e
+
+    def get_time_config(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> TimeConfig:
+        """Retrieves timezone configuration information from the controller"""
+        try:
+            self.__send(GetTimeConfigRequest())
+            if not self.__cache.time_config_data.await_update(timeout):
+                raise JellyFishException("Request for time config information timed out")
+            return self.__cache.time_config_data.get_entry()
         except JellyFishException:
             raise
         except Exception as e:

@@ -5,6 +5,7 @@ from .const import (
     FIRMWARE_VERSION_DATA,
     HOSTNAME_DATA,
     NAME_DATA,
+    TIME_CONFIG_DATA,
     ZONE_CONFIG_DATA,
     PATTERN_LIST_DATA,
     PATTERN_CONFIG_DATA,
@@ -32,6 +33,11 @@ class GetHostnameRequest(GetRequest):
 class GetNameRequest(GetRequest):
     def __init__(self):
         super().__init__(NAME_DATA)
+
+
+class GetTimeConfigRequest(GetRequest):
+    def __init__(self):
+        super().__init__(TIME_CONFIG_DATA)
 
 
 class GetZoneConfigRequest(GetRequest):

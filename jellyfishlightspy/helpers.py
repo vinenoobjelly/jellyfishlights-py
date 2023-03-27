@@ -4,6 +4,7 @@ from typing import Type, Any, Optional
 from threading import Event
 from .requests import SetPatternConfigRequest
 from .model import (
+    TimeConfig,
     RunConfig,
     PatternConfig,
     ZoneState,
@@ -123,6 +124,8 @@ def _object_hook(data):
         return ScheduleEvent(**data)
     if "startFrom" in data:
         return ScheduleEventAction(**data)
+    if "timezone" in data:
+        return TimeConfig(**data)
     return data
 
 def from_json(json_str: str):

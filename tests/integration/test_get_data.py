@@ -1,4 +1,4 @@
-from jellyfishlightspy.model import Pattern, ZoneConfig, PortMapping, ZoneState, PatternConfig
+from jellyfishlightspy.model import Pattern, ZoneConfig, PortMapping, ZoneState, PatternConfig, TimeConfig
 from jellyfishlightspy.validators import validate_pattern_config
 
 def test_get_firmware_version(controller):
@@ -12,6 +12,10 @@ def test_get_hostname(controller):
 def test_get_name(controller):
     name = controller.name
     assert name and type(name) is str
+
+def test_get_time_config(controller):
+    time_config = controller.time_config
+    assert time_config and isinstance(time_config, TimeConfig)
 
 def test_get_patterns(controller):
     patterns = controller.pattern_list

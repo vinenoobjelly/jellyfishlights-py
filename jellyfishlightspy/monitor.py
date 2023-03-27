@@ -7,15 +7,16 @@ from .helpers import JellyFishException, from_json
 from .model import Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, FirmwareVersion, ScheduleEvent
 from .const import (
     LOGGER,
+    NAME_DATA,
+    HOSTNAME_DATA,
+    FIRMWARE_VERSION_DATA,
+    TIME_CONFIG_DATA,
     ZONE_CONFIG_DATA,
     PATTERN_LIST_DATA,
     PATTERN_CONFIG_DATA,
     ZONE_STATE_DATA,
     DEFAULT_TIMEOUT,
     DELETE_PATTERN_DATA,
-    FIRMWARE_VERSION_DATA,
-    HOSTNAME_DATA,
-    NAME_DATA,
 )
 
 class WebSocketMonitor:
@@ -65,17 +66,21 @@ class WebSocketMonitor:
                 return
 
             # Check what type of data the message contains and update cached data
-            if FIRMWARE_VERSION_DATA in data:
-                data = data[FIRMWARE_VERSION_DATA]
-                self.__cache.firmware_version_data.update_entry(data)
+            if NAME_DATA in data:
+                ctlr_name = data[NAME_DATA]
+                self.__cache.name_data.update_entry(ctlr_name)
 
             elif HOSTNAME_DATA in data:
                 hostname = data[HOSTNAME_DATA]
                 self.__cache.hostname_data.update_entry(hostname)
 
-            elif NAME_DATA in data:
-                ctlr_name = data[NAME_DATA]
-                self.__cache.name_data.update_entry(ctlr_name)
+            elif FIRMWARE_VERSION_DATA in data:
+                data = data[FIRMWARE_VERSION_DATA]
+                self.__cache.firmware_version_data.update_entry(data)
+
+            elif TIME_CONFIG_DATA in data:
+                time_config = data[TIME_CONFIG_DATA]
+                self.__cache.time_config_data.update_entry(time_config)
 
             elif ZONE_CONFIG_DATA in data:
                 entries = data[ZONE_CONFIG_DATA]

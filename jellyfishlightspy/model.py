@@ -100,3 +100,12 @@ class ScheduleEvent(ModelBase):
         self.label = label
         self.days = days
         self.actions = actions
+
+
+class TimeConfig(ModelBase):
+    def __init__(self, timezone: str, timezoneName: str, locName: str, lat: int, lon: int):
+        self.timezone = timezone
+        self.timezoneName = timezoneName
+        self.locName = locName
+        self.lat = lat
+        self.lon = lon

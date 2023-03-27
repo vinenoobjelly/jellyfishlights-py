@@ -10,7 +10,8 @@ To install:
 
 - Connect to a local JellyFish Lighting controller over websocket
 - Retrieve the following data:
-  - Controller name, hostname, and version
+  - Controller's name, hostname, and firmware version
+  - Timezone configuration
   - Zone configuration
   - Preset patterns and their configurations
   - Zone states
@@ -24,7 +25,7 @@ To install:
 - Create, update, and delete custom pattern configurations
 - Create, update, and delete schedule events (calendar and daily)
 - Create, update, and delete zone configurations
-- Set the controller's hostname
+- Set the controller's name
 
 ## Example
 
@@ -46,6 +47,9 @@ print(f"Connected to JellyFish Lighting controller '{jfc.name}' ({jfc.hostname})
 
 # Print the controller's firmware version information
 print(f"Firmware version: {jfc.firmware_version}")
+
+# Print the controller's timezone configuration
+print(f"Timezone configuration: {jfc.time_config}")
 
 # Print the currently configured zones
 # USAGE NOTE: all attributes on the controller will return cached data when available.
