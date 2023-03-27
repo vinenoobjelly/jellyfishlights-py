@@ -3,9 +3,9 @@ import logging
 LOGGER = logging.getLogger(__package__)
 LOGGER.addHandler(logging.NullHandler())
 
-CONTROLLER_VERSION_DATA = "version"
-CONTROLLER_HOSTNAME_DATA = "hostName"
-CONTROLLER_NAME_DATA = "ctlrName"
+FIRMWARE_VERSION_DATA = "version"
+HOSTNAME_DATA = "hostName"
+NAME_DATA = "ctlrName"
 ZONE_CONFIG_DATA = "zones"
 ZONE_STATE_DATA = "runPattern"
 PATTERN_LIST_DATA = "patternFileList"

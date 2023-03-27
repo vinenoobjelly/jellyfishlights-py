@@ -7,7 +7,7 @@ from .model import (
     PatternConfig,
     ZoneState,
     Pattern,
-    ControllerVersion,
+    FirmwareVersion,
     ScheduleEvent,
     ScheduleEventAction
 )

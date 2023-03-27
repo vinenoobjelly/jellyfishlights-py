@@ -5,7 +5,7 @@ class ModelBase():
         return self.__class__.__name__ + str(vars(self))
 
 
-class ControllerVersion(ModelBase):
+class FirmwareVersion(ModelBase):
     def __init__(self, ver: str, details: str, isUpdate: bool):
         self.ver = ver
         self.details = details

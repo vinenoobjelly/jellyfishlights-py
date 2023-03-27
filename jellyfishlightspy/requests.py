@@ -2,9 +2,9 @@ from typing import List, Optional, Dict
 from types import SimpleNamespace
 from .model import ZoneConfig, ZoneState, PatternConfig, Pattern, ScheduleEvent
 from .const import (
-    CONTROLLER_VERSION_DATA,
-    CONTROLLER_HOSTNAME_DATA,
-    CONTROLLER_NAME_DATA,
+    FIRMWARE_VERSION_DATA,
+    HOSTNAME_DATA,
+    NAME_DATA,
     ZONE_CONFIG_DATA,
     PATTERN_LIST_DATA,
     PATTERN_CONFIG_DATA,
@@ -19,19 +19,19 @@ class GetRequest:
         self.get = [[*args]]
 
 
-class GetControllerVersionRequest(GetRequest):
+class GetFirmwareVersionRequest(GetRequest):
     def __init__(self):
-        super().__init__(CONTROLLER_VERSION_DATA)
+        super().__init__(FIRMWARE_VERSION_DATA)
 
 
-class GetControllerHostnameRequest(GetRequest):
+class GetHostnameRequest(GetRequest):
     def __init__(self):
-        super().__init__(CONTROLLER_HOSTNAME_DATA)
+        super().__init__(HOSTNAME_DATA)
 
 
-class GetControllerNameRequest(GetRequest):
+class GetNameRequest(GetRequest):
     def __init__(self):
-        super().__init__(CONTROLLER_NAME_DATA)
+        super().__init__(NAME_DATA)
 
 
 class GetZoneConfigRequest(GetRequest):

@@ -3,14 +3,14 @@ import time
 from jellyfishlightspy.model import Pattern, ScheduleEvent, ScheduleEventAction, ZoneConfig, PortMapping
 from jellyfishlightspy.helpers import JellyFishException
 
-def test_set_controller_name(controller):
+def test_set_name(controller):
     test_name = "**INT TEST** ctlrName"
-    orig_name = controller.controller_name
+    orig_name = controller.name
     assert test_name != orig_name
-    controller.set_controller_name(test_name)
-    assert controller.controller_name == test_name
-    controller.set_controller_name(orig_name)
-    assert controller.controller_name == orig_name
+    controller.set_name(test_name)
+    assert controller.name == test_name
+    controller.set_name(orig_name)
+    assert controller.name == orig_name
 
 def test_save_and_delete_pattern(controller):
     config = controller.get_pattern_config("Colors/Blue")
@@ -45,7 +45,7 @@ def test_save_and_delete_pattern(controller):
 
 def test_save_and_delete_zones(controller):
     orig_zones = controller.zone_configs
-    hostname = controller.controller_hostname
+    hostname = controller.hostname
     test_zones = {
         "test-zone-1": ZoneConfig([PortMapping(1, 0, 10),PortMapping(1, 11, 20)]),
         "test-zone-2": ZoneConfig([PortMapping(1, 21, 50)]),

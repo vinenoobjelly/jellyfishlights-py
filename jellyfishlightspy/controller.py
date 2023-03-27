@@ -5,14 +5,14 @@ import websocket
 from typing import Dict, List, Tuple, Optional, Any
 from threading import Thread
 from .const import LOGGER, DEFAULT_TIMEOUT
-from .model import Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, ControllerVersion, ScheduleEvent
+from .model import Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, FirmwareVersion, ScheduleEvent
 from .cache import JellyFishCache
 from .monitor import WebSocketMonitor
 from .helpers import JellyFishException, to_json
 from .requests import (
-    GetControllerVersionRequest,
-    GetControllerHostnameRequest,
-    GetControllerNameRequest,
+    GetFirmwareVersionRequest,
+    GetHostnameRequest,
+    GetNameRequest,
     GetZoneConfigRequest,
     GetZoneStateRequest,
     GetPatternListRequest,
@@ -59,19 +59,19 @@ class JellyFishController:
         return self.__ws_monitor.connected
 
     @property
-    def controller_version(self) -> ControllerVersion:
-        """The controller's version information (returns cached data if available)"""
-        return self.__cache.controller_version_data.get_entry() or self.get_controller_version()
-
-    @property
-    def controller_hostname(self) -> str:
-        """The controller's hostname (returns cached data if available)"""
-        return self.__cache.controller_hostname_data.get_entry() or self.get_controller_hostname()
-
-    @property
-    def controller_name(self) -> str:
+    def name(self) -> str:
         """The controller's user-defined name (returns cached data if available)"""
-        return self.__cache.controller_name_data.get_entry() or self.get_controller_name()
+        return self.__cache.name_data.get_entry() or self.get_name()
+
+    @property
+    def hostname(self) -> str:
+        """The controller's hostname (returns cached data if available)"""
+        return self.__cache.hostname_data.get_entry() or self.get_hostname()
+
+    @property
+    def firmware_version(self) -> FirmwareVersion:
+        """The controller's version information (returns cached data if available)"""
+        return self.__cache.firmware_version_data.get_entry() or self.get_firmware_version()
 
     @property
     def zone_configs(self) -> Dict[str, ZoneConfig]:
@@ -166,41 +166,41 @@ class JellyFishController:
         LOGGER.debug("Sending: %s", msg)
         self.__ws.send(msg)
 
-    def get_controller_version(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> ControllerVersion:
-        """Retrieves version information from the controller"""
+    def get_name(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> str:
+        """Retrieves the user-defined name for the controller"""
         try:
-            self.__send(GetControllerVersionRequest())
-            if not self.__cache.controller_version_data.await_update(timeout):
-                raise JellyFishException("Request for controller version information timed out")
-            return self.__cache.controller_version_data.get_entry()
+            self.__send(GetNameRequest())
+            if not self.__cache.name_data.await_update(timeout):
+                raise JellyFishException("Request for controller name timed out")
+            return self.__cache.name_data.get_entry()
         except JellyFishException:
             raise
         except Exception as e:
-            raise JellyFishException("Error encountered while retrieving controller version information") from e
+            raise JellyFishException("Error encountered while retrieving controller name") from e
 
-    def get_controller_hostname(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> str:
+    def get_hostname(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> str:
         """Retrieves the hostname from the controller"""
         try:
-            self.__send(GetControllerHostnameRequest())
-            if not self.__cache.controller_hostname_data.await_update(timeout):
+            self.__send(GetHostnameRequest())
+            if not self.__cache.hostname_data.await_update(timeout):
                 raise JellyFishException("Request for controller hostname timed out")
-            return self.__cache.controller_hostname_data.get_entry()
+            return self.__cache.hostname_data.get_entry()
         except JellyFishException:
             raise
         except Exception as e:
             raise JellyFishException("Error encountered while retrieving controller hostname") from e
 
-    def get_controller_name(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> str:
-        """Retrieves the user-defined name for the controller"""
+    def get_firmware_version(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> FirmwareVersion:
+        """Retrieves version information from the controller"""
         try:
-            self.__send(GetControllerNameRequest())
-            if not self.__cache.controller_name_data.await_update(timeout):
-                raise JellyFishException("Request for controller name timed out")
-            return self.__cache.controller_name_data.get_entry()
+            self.__send(GetFirmwareVersionRequest())
+            if not self.__cache.firmware_version_data.await_update(timeout):
+                raise JellyFishException("Request for controller version information timed out")
+            return self.__cache.firmware_version_data.get_entry()
         except JellyFishException:
             raise
         except Exception as e:
-            raise JellyFishException("Error encountered while retrieving controller name") from e
+            raise JellyFishException("Error encountered while retrieving controller version information") from e
 
     def get_zone_names(self, timeout: Optional[float]=DEFAULT_TIMEOUT) -> List[str]:
         """Retrieves the list of current zones from the controller and caches the data"""
@@ -486,7 +486,7 @@ class JellyFishController:
             for config in zone_configs.values():
                 config.numPixels = 0
                 for mapping in config.portMap:
-                    mapping.ctlrName = mapping.ctlrName or self.controller_hostname
+                    mapping.ctlrName = mapping.ctlrName or self.hostname
                     config.numPixels += abs(mapping.phyEndIdx - mapping.phyStartIdx) + 1
                 validate_zone_config(config)
             self.__send(SetZoneConfigRequest(zone_configs))
@@ -497,11 +497,11 @@ class JellyFishController:
         except Exception as e:
             raise JellyFishException("Error encountered while saving zone configurations") from e
 
-    def set_controller_name(self, name: str, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
+    def set_name(self, name: str, sync: bool=True, timeout: float=DEFAULT_TIMEOUT):
         """Sets the user-defined name of the controller"""
         try:
             self.__send(SetControllerNameRequest(name))
-            if sync and not self.__cache.controller_name_data.await_update(timeout):
+            if sync and not self.__cache.name_data.await_update(timeout):
                 raise JellyFishException("Request to set controller name timed out")
         except JellyFishException:
             raise

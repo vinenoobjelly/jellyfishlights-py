@@ -42,10 +42,10 @@ jfc = JellyFishController('192.168.0.245') # hostname also works
 jfc.connect()
 
 # Print the controller's name and hostname
-print(f"Connected to JellyFish Lighting controller {jfc.controller_name} ({jfc.controller_hostname})")
+print(f"Connected to JellyFish Lighting controller '{jfc.name}' ({jfc.hostname})")
 
 # Print the controller's firmware version information
-print(f"Firmware version: {jfc.controller_version}")
+print(f"Firmware version: {jfc.firmware_version}")
 
 # Print the currently configured zones
 # USAGE NOTE: all attributes on the controller will return cached data when available.
@@ -90,7 +90,7 @@ jfc.turn_off(sync=False)
 jfc.turn_on(["front-zone"], timeout=5)
 
 # Change the controller's user-defined name
-jfc.set_controller_name("My JellyFish Controller")
+jfc.set_name("My JellyFish Controller")
 
 # Retrieve a pattern configuration
 config = jfc.get_pattern_config("Colors/Blue")
@@ -155,7 +155,7 @@ for zone, config in orig_zones.items():
 new_config = ZoneConfig([
     # USAGE NOTE: the phyPort attribute maps as such to the ports on the controller (controller port->phyPort): 1->1, 2->2, 3->4, 4->8
     # USAGE NOTE: zoneRGBStartIdx defaults to phyStartIdx. Setting it to the phyEndIdx value will reverse the direction
-    # USAGE NOTE: ctlrName defaults to the hostname of the controller you are currently connected to (jfc.controller_hostname)
+    # USAGE NOTE: ctlrName defaults to the hostname of the controller you are currently connected to (jfc.hostname)
     # USAGE NOTE: All of the *Idx values are one less than what is displayed in the app! (e.g. a "1" value in the app is a "0" value here)
     PortMapping(phyPort=1, phyStartIdx=0, phyEndIdx=10, zoneRGBStartIdx=10, ctlrName="my-controller-hostname"),
     #USAGE NOTE: this is the short version that sets only the required fields: phyPort, phyStartIdx, and phyEndIdx

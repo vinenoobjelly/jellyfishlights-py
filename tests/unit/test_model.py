@@ -6,15 +6,15 @@ from jellyfishlightspy.model import (
     Pattern,
     PortMapping,
     ZoneConfig,
-    ControllerVersion,
+    FirmwareVersion,
     ScheduleEvent,
     ScheduleEventAction,
 )
 from jellyfishlightspy.helpers import to_json, from_json
 
-def test_controller_version(helpers, cv_obj, cv_json):
+def test_firmware_version(helpers, cv_obj, cv_json):
     o = helpers.assert_marshalling_works(cv_obj, cv_json)
-    assert isinstance(o, ControllerVersion)
+    assert isinstance(o, FirmwareVersion)
 
 def test_run_config(helpers, rc_obj, rc_json):
     o = helpers.assert_marshalling_works(rc_obj, rc_json)

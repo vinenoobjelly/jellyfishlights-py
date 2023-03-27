@@ -10,7 +10,7 @@ from .model import (
     Pattern,
     PortMapping,
     ZoneConfig,
-    ControllerVersion,
+    FirmwareVersion,
     ScheduleEvent,
     ScheduleEventAction,
 )
@@ -106,7 +106,7 @@ def _object_hook(data):
 
     # Instantiate the appropriate objects (vs. plain dicts)
     if "ver" in data:
-        return ControllerVersion(**data)
+        return FirmwareVersion(**data)
     if "speed" in data:
         return RunConfig(**data)
     if "colors" in data:

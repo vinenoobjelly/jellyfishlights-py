@@ -4,7 +4,7 @@ from threading import Event
 from typing import Dict, List, Optional
 from .cache import JellyFishCache
 from .helpers import JellyFishException, from_json
-from .model import Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, ControllerVersion, ScheduleEvent
+from .model import Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, FirmwareVersion, ScheduleEvent
 from .const import (
     LOGGER,
     ZONE_CONFIG_DATA,
@@ -13,9 +13,9 @@ from .const import (
     ZONE_STATE_DATA,
     DEFAULT_TIMEOUT,
     DELETE_PATTERN_DATA,
-    CONTROLLER_VERSION_DATA,
-    CONTROLLER_HOSTNAME_DATA,
-    CONTROLLER_NAME_DATA,
+    FIRMWARE_VERSION_DATA,
+    HOSTNAME_DATA,
+    NAME_DATA,
 )
 
 class WebSocketMonitor:
@@ -65,17 +65,17 @@ class WebSocketMonitor:
                 return
 
             # Check what type of data the message contains and update cached data
-            if CONTROLLER_VERSION_DATA in data:
-                data = data[CONTROLLER_VERSION_DATA]
-                self.__cache.controller_version_data.update_entry(data)
+            if FIRMWARE_VERSION_DATA in data:
+                data = data[FIRMWARE_VERSION_DATA]
+                self.__cache.firmware_version_data.update_entry(data)
 
-            elif CONTROLLER_HOSTNAME_DATA in data:
-                hostname = data[CONTROLLER_HOSTNAME_DATA]
-                self.__cache.controller_hostname_data.update_entry(hostname)
+            elif HOSTNAME_DATA in data:
+                hostname = data[HOSTNAME_DATA]
+                self.__cache.hostname_data.update_entry(hostname)
 
-            elif CONTROLLER_NAME_DATA in data:
-                ctlr_name = data[CONTROLLER_NAME_DATA]
-                self.__cache.controller_name_data.update_entry(ctlr_name)
+            elif NAME_DATA in data:
+                ctlr_name = data[NAME_DATA]
+                self.__cache.name_data.update_entry(ctlr_name)
 
             elif ZONE_CONFIG_DATA in data:
                 entries = data[ZONE_CONFIG_DATA]

@@ -9,7 +9,7 @@ from jellyfishlightspy.model import (
     Pattern,
     ZoneConfig,
     PortMapping,
-    ControllerVersion,
+    FirmwareVersion,
     ScheduleEvent,
     ScheduleEventAction,
 )
@@ -21,8 +21,8 @@ def helpers() -> Helpers:
     return Helpers
 
 @pytest.fixture
-def cv_obj() -> ControllerVersion:
-    return ControllerVersion("test-ver", "test-details", True)
+def cv_obj() -> FirmwareVersion:
+    return FirmwareVersion("test-ver", "test-details", True)
 
 @pytest.fixture
 def cv_json() -> str:
