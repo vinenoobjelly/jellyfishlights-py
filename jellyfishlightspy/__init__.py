@@ -1,13 +1,14 @@
 from .controller import JellyFishController
 from .helpers import JellyFishException
 from .model import (
-    PortMapping,
-    ZoneConfig,
-    RunConfig,
-    PatternConfig,
-    ZoneState,
-    Pattern,
+    TimeConfig,
     FirmwareVersion,
+    ZoneState,
+    ZoneConfig,
+    PortMapping,
+    Pattern,
+    PatternConfig,
+    RunConfig,
     ScheduleEvent,
-    ScheduleEventAction
+    ScheduleEventAction,
 )
