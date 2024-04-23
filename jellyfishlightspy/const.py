@@ -12,6 +12,7 @@ ZONE_STATE_DATA = "runPattern"
 PATTERN_LIST_DATA = "patternFileList"
 PATTERN_CONFIG_DATA = "patternFileData"
 DELETE_PATTERN_DATA = "patternFileDelete"
+SCHEDULE_DATA = "schedule"
 CALENDAR_SCHEDULE_DATA = "scheduleCalendar"
 DAILY_SCHEDULE_DATA = "scheduleDaily"
 

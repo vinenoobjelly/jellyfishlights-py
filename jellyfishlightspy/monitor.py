@@ -17,6 +17,7 @@ from .const import (
     ZONE_STATE_DATA,
     DEFAULT_TIMEOUT,
     DELETE_PATTERN_DATA,
+    SCHEDULE_DATA,
 )
 
 class WebSocketMonitor:
@@ -116,8 +117,8 @@ class WebSocketMonitor:
                 if not pattern.is_folder:
                     self.__cache.pattern_config_data.delete_entry(str(pattern))
 
-            elif "schedule" in data:
-                schedule_type = data["schedule"]
+            elif SCHEDULE_DATA in data:
+                schedule_type = data[SCHEDULE_DATA]
                 events = data["events"]
                 if schedule_type == "calendar":
                     self.__cache.calendar_schedule_data.update_entry(events)
