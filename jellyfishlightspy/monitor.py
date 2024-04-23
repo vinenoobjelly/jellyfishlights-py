@@ -94,8 +94,8 @@ class WebSocketMonitor:
                 self.__cache.hostname_data.update_entry(hostname)
 
             elif FIRMWARE_VERSION_DATA in data:
-                data = data[FIRMWARE_VERSION_DATA]
-                self.__cache.firmware_version_data.update_entry(data)
+                version = data[FIRMWARE_VERSION_DATA]
+                self.__cache.firmware_version_data.update_entry(version)
 
             elif TIME_CONFIG_DATA in data:
                 time_config = data[TIME_CONFIG_DATA]
@@ -119,11 +119,11 @@ class WebSocketMonitor:
                 self.__cache.zone_state_data.update_entries(entries)
 
             elif PATTERN_CONFIG_DATA in data:
-                data = data[PATTERN_CONFIG_DATA]
-                pattern = Pattern(data["folders"], data["name"])
+                pc = data[PATTERN_CONFIG_DATA]
+                pattern = Pattern(pc["folders"], pc["name"])
                 if pattern.is_folder:
                     return
-                config = data["jsonData"]
+                config = pc["jsonData"]
                 self.__cache.pattern_config_data.update_entry(config, str(pattern))
                 # Add to the pattern list if it's new
                 if self.__cache.pattern_list_data.size > 0 and self.__cache.pattern_list_data.get_entry(str(pattern)) is None:
