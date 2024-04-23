@@ -143,7 +143,8 @@ class WebSocketMonitor:
                 elif schedule_type == "daily":
                     self.__cache.daily_schedule_data.update_entry(events)
 
-            [l(message) for l in self.__message_listeners]
+            # Notify listeners
+            [l(data) for l in self.__message_listeners]
 
         except Exception:
             LOGGER.exception("Error encountered while processing web socket message: '%s'", message)
