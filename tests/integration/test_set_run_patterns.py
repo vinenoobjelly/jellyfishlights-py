@@ -22,13 +22,13 @@ def test_apply_light_string(controller):
     zone = controller.zone_names[0]
     controller.apply_light_string([(255, 255, 255), (255, 0, 0), (0, 255, 0) ,(0, 0, 255)], 55, [zone])
     state = controller.get_zone_state(zone)
-    assert state.is_on and state.state in [-1, 3]
+    assert state.is_on and state.state == 1
     assert state.data.colors == [0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255]
     assert state.data.runData.brightness == 55
     controller.turn_off([zone])
     controller.apply_light_string([(50, 50, 50)], 66)
     for zone, state in controller.get_zone_states().items():
-        assert state.is_on and state.state in [-1, 3]
+        assert state.is_on and state.state == 1
         assert state.data.colors == [0, 0, 0, 50, 50, 50]
         assert state.data.runData.brightness == 66
 

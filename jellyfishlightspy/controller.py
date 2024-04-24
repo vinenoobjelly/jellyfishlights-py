@@ -358,7 +358,7 @@ class JellyFishController:
                 colors.extend(rgb)
                 colors_pos.append(i)
             config = PatternConfig(type="Soffit", colors=colors, colorPos=colors_pos, runData=RunConfig(brightness=brightness))
-            self.__send(SetZoneStateRequest(state=3, zoneName=zones, data=config))
+            self.__send(SetZoneStateRequest(state=1, zoneName=zones, data=config))
             if sync and not self.__cache.zone_state_data.await_update(timeout, zones):
                 raise JellyFishException(f"Request to apply light string on zones {zones} timed out")
         except JellyFishException:
