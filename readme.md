@@ -62,13 +62,34 @@ jfc.set_name("My JellyFish Controller")
 jfc.disconnect()
 ```
 
+### Listening for Push Events (connection status, messages, and errors)
+
+```python
+# Create callbacks to respond to various events
+def on_open()
+  print("Connected!")
+
+def on_close(status, message)
+  print("Disconnected (status: %s, message: %s)", status, message)
+
+def on_message(data)
+  print("Recieved push data: %s", data)
+
+def on_error(error)
+  print("Error encountered: %s", error)
+
+# Register your callbacks
+jfc.add_listener(on_open, on_close, on_message, on_error)
+```
+
 ### Zones (state, turning on/off, and configuration)
 
 ```python
 # Print the currently configured zones
 # NOTE: all attributes on the controller will return cached data when available.
-# If you want to ensure you are retrieving the latest information from the controller,
-# use the corresponding get_* function (jfc.get_zone_names() in this case)
+# Cached data is automatically updated via push events, but if you want to ensure
+# you are retrieving the latest information from the controller, use the corresponding
+# get_* function (jfc.get_zone_names() in this case)
 print(f"Zones: {jfc.zone_names}")
 
 # Print the current state of all zones

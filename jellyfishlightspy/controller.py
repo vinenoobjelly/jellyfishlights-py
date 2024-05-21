@@ -2,7 +2,7 @@
 #TODO: get rid of above once this is done
 
 import websocket
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Callable, Any
 from threading import Thread
 from .const import LOGGER, DEFAULT_TIMEOUT
 from .model import TimeConfig, Pattern, RunConfig, PatternConfig, ZoneState, ZoneConfig, FirmwareVersion, ScheduleEvent
@@ -163,6 +163,9 @@ class JellyFishController:
             raise
         except Exception as e:
             raise JellyFishException(f"Error encountered while disconnecting from controller at {self.address}") from e
+
+    def add_listener(self, on_open:Callable=None, on_close:Callable=None, on_message:Callable=None, on_error:Callable=None) -> None:
+        self.__ws_monitor.add_listener(on_open, on_close, on_message, on_error)
 
     def __send(self, data: Any) -> None:
         """Sends data to the controller over the web socket connection"""
