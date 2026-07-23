@@ -108,7 +108,7 @@ def _object_hook(data):
     # Instantiate the appropriate objects (vs. plain dicts)
     if "ver" in data:
         return FirmwareVersion(**data)
-    if "speed" in data:
+    if {"speed", "brightness", "effect"}.issubset(data):
         return RunConfig(**data)
     if "colors" in data:
         return PatternConfig(**data)

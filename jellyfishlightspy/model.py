@@ -56,7 +56,25 @@ class Pattern(ModelBase):
 
 
 class PatternConfig(ModelBase):
-    def __init__(self, type: str, colors: List[int], runData: RunConfig=None, direction: str="Center", spaceBetweenPixels: int=2, numOfLeds: int=1, skip: int=2, effectBetweenPixels: str="No Color Transform", colorPos: List[int]=None, cursor: int=-1, ledOnPos: Dict[str, int]=None, soffitZone: str="") -> None:
+    def __init__(
+        self,
+        type: str,
+        colors: List[int],
+        runData: RunConfig = None,
+        direction: str = "Center",
+        spaceBetweenPixels: int = 2,
+        numOfLeds: int = 1,
+        skip: int = 2,
+        effectBetweenPixels: str = "No Color Transform",
+        colorPos: List[int] = None,
+        cursor: int = -1,
+        ledOnPos: Dict[str, int] = None,
+        soffitZone: str = "",
+        blingSettings: Optional[dict] = None,
+        shimmerSettings: Optional[dict] = None,
+        rippleSettings: Optional[dict] = None,
+        **kwargs,
+    ) -> None:
         self.type = type
         self.colors = colors
         self.runData = runData
@@ -70,6 +88,10 @@ class PatternConfig(ModelBase):
         # These attributes appear to be optional and are only seen on soffit patterns
         self.ledOnPos = ledOnPos or {}
         self.soffitZone = soffitZone
+        # These attributes appear to be from a newer version of the firmware
+        self.blingSettings = blingSettings
+        self.shimmerSettings = shimmerSettings
+        self.rippleSettings = rippleSettings
 
 
 class ZoneState(ModelBase):
