@@ -92,6 +92,10 @@ class PatternConfig(ModelBase):
         self.blingSettings = blingSettings
         self.shimmerSettings = shimmerSettings
         self.rippleSettings = rippleSettings
+        # Keep any other attributes (e.g. musicSettings on Music Box patterns) so
+        # they survive a round trip back to the controller
+        for name, value in kwargs.items():
+            setattr(self, name, value)
 
 
 class ZoneState(ModelBase):

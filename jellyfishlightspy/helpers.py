@@ -110,7 +110,8 @@ def _object_hook(data):
         return FirmwareVersion(**data)
     if {"speed", "brightness", "effect"}.issubset(data):
         return RunConfig(**data)
-    if "colors" in data:
+    if {"type", "colors"}.issubset(data):
+        # Nested settings objects (e.g. musicSettings) can also have "colors"
         return PatternConfig(**data)
     if "state" in data:
         return ZoneState(**data)

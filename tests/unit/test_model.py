@@ -71,3 +71,19 @@ def test_schedule_event(helpers, se_obj, se_json):
     assert isinstance(o, ScheduleEvent)
     for action in o.actions:
         assert isinstance(action, ScheduleEventAction)
+def test_music_pattern_config():
+    # Music Box patterns have a nested musicSettings object that also has "colors" (#44 in hass-jellyfish-lighting)
+    music_settings = {"musicType": "Bar Overlay", "frequencies": ["Bass"], "frequencyMultipliers": [1.0], "colors": [{"R": 255, "G": 40, "B": 0}, {"R": 0, "G": 0, "B": 0}], "beatThreshold": 50.0, "direction": "center", "tipSize": 2}
+    data = {"type": "Music", "colors": [80, 0, 120, 255, 60, 0], "spaceBetweenPixels": 1, "effectBetweenPixels": "No Color Transform", "skip": 1, "numOfLeds": 1, "runData": {"speed": 1, "brightness": 100, "effect": "No Effect", "effectValue": 0, "rgbAdj": [100, 100, 100]}, "direction": "Left", "musicSettings": music_settings}
+    msg = json.dumps({"activatedBy": "network_command", "data": json.dumps(data), "file": "_JF-MUSIC/Test", "id": "Zone1", "state": 1, "zoneName": ["Zone1"]})
+    o = from_json(msg)
+    assert isinstance(o, ZoneState)
+    assert isinstance(o.data, PatternConfig)
+    assert o.data.type == "Music"
+    assert isinstance(o.data.runData, RunConfig)
+    assert o.data.musicSettings == music_settings
+    # musicSettings is preserved when the config is sent back to the controller
+    assert from_json(to_json(o)).data.musicSettings == music_settings
+
+def test_colors_without_type_is_not_pattern_config():
+    assert from_json('{"colors": [{"R": 1, "G": 2, "B": 3}]}') == {"colors": [{"R": 1, "G": 2, "B": 3}]}
